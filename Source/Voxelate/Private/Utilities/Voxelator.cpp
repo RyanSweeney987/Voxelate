@@ -24,3 +24,8 @@
 
 
 #include "Utilities/Voxelator.h"
+
+TArray<bool> FVoxelator::VoxelateNavigableGeometry(UWorld* InWorld, const FVoxelGrid& InVoxelGrid)
+{
+	return TArray<bool>();
+}

@@ -277,6 +277,74 @@ FTriangleProxy FTriangleProxy::Translate(const FVector& Translation) const
 }
 
 /**
+ * Check if the triangle intersects with an AABB
+ * @param Other The AABB to check for intersection
+ * @return True if the triangle intersects with the AABB
+ */
+bool FTriangleProxy::Intersects(const FBox& Other) const
+{
+	const FTriangleProxy TranslatedTriangle = Translate(-Other.GetCenter());
+	const FVector A = TranslatedTriangle.V[0];
+	const FVector B = TranslatedTriangle.V[1];
+	const FVector C = TranslatedTriangle.V[2];
+
+	FVector AB = B - A;
+	FVector BC = C - B;
+	FVector CA = A - C;
+
+	AB.Normalize();
+	BC.Normalize();
+	CA.Normalize();
+
+	const FVector E = Other.GetExtent();
+
+	// Cross AB, BV and CA with (1, 0, 0)
+	const FVector A00 = FVector(0, -AB.Z, AB.Y);
+	const FVector A01 = FVector(0, -BC.Z, BC.Y);
+	const FVector A02 = FVector(0, -CA.Z, CA.Y);
+
+	// Cross AB, BC and CA with (0, 1, 0)
+	const FVector A10 = FVector(AB.Z, 0, -AB.X);
+	const FVector A11 = FVector(BC.Z, 0, -BC.X);
+	const FVector A12 = FVector(CA.Z, 0, -CA.X);
+
+	// Cross AB, BC and CA with (0, 0, 1)
+	const FVector A20 = FVector(-AB.Y, AB.X, 0);
+	const FVector A21 = FVector(-BC.Y, BC.X, 0);
+	const FVector A22 = FVector(-CA.Y, CA.X, 0);
+
+	return IntersectsTriangleAABBSat(TranslatedTriangle, E, A00) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A01) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A02) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A10) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A11) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A12) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A20) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A21) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, A22) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, FVector(1, 0, 0)) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, FVector(0, 1, 0)) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, FVector(0, 0, 1)) &&
+		IntersectsTriangleAABBSat(TranslatedTriangle, E, AB.Cross(BC));
+}
+
+bool FTriangleProxy::IntersectsTriangleAABBSat(const FTriangleProxy& Triangle, const FVector& Extent, const FVector& Axis) const
+{
+	const double P0 = Triangle.V[0].Dot(Axis);
+	const double P1 = Triangle.V[1].Dot(Axis);
+	const double P2 = Triangle.V[2].Dot(Axis);
+
+	const double R = Extent.X * FMath::Abs(FVector(1, 0, 0).Dot(Axis)) +
+			Extent.Y * FMath::Abs(FVector(0, 1, 0).Dot(Axis)) +
+			Extent.Z * FMath::Abs(FVector(0, 0, 1).Dot(Axis));
+
+	const double MinP = FMath::Min3(P0, P1, P2);
+	const double MaxP = FMath::Max3(P0, P1, P2);
+
+	return !(FMath::Max(-MaxP, MinP) > R);
+}
+
+/**
  * Normalize a vector - internal function
  * Used in Geometry for triangle
  * @param Vector The vector to normalize

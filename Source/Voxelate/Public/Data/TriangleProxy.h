@@ -74,6 +74,10 @@ struct VOXELATE_API FTriangleProxy
 	
 	void Translate(const FVector& Translation);
 	FTriangleProxy Translate(const FVector& Translation) const;
+
+	bool Intersects(const FBox& Other) const;
+protected:
+	inline bool IntersectsTriangleAABBSat(const FTriangleProxy& Triangle, const FVector& Extent, const FVector& Axis) const;
 private:
 	FVector Normalized(const FVector& Vector, const double Epsilon = 0.0) const;
 };
