@@ -25,7 +25,7 @@ public class Voxelate : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+				"Core", "Landscape",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

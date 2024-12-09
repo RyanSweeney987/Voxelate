@@ -25,15 +25,36 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LandscapeProxy.h"
+#include "Data/CapsuleProxy.h"
+#include "Data/OOBBoxProxy.h"
+#include "Data/SphereProxy.h"
+#include "Data/TriangleProxy.h"
+#include "Data/VoxelGrid.h"
 #include "Voxelator.generated.h"
 
 /**
  * 
  */
-class VOXELATE_API Voxelator
+USTRUCT()
+struct VOXELATE_API FVoxelator
 {
+	GENERATED_BODY()
+	
 public:
-	Voxelator();
-	~Voxelator();
+	FVoxelator() = default;
+
+	TArray<bool> VoxelateWorld(UWorld* InWorld, const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelateActor(AActor* InActor, const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelateStaticMesh(UStaticMesh* InComponent, const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelatePhysicsBody(UPrimitiveComponent* InComponent, const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelateLandscape(ALandscapeProxy* InLandscape, const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelateNavigableGeometry(UWorld* InWorld, const FVoxelGrid& InVoxelGrid);
+
+	bool AABBIntersectsTriangle(const FBox& InAABB, const FTriangleProxy& InTriangle);
+	bool AABBIntersectsOBB(const FBox& InAABB, const FOOBBoxProxy& InOOBB);
+	bool AABBIntersectsSphere(const FBox& InAABB, const FSphereProxy& InSphere);
+	bool AABBIntersectsCapsule(const FBox& InAABB, const FCapsuleProxy& InCapsule);
+	bool AABBIntersectsAABB(const FBox& InAABB1, const FBox& InAABB2);
 };
 

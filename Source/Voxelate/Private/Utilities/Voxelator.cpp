@@ -23,13 +23,4 @@
  */
 
 
-#include "Voxelator.h"
-
-
-Voxelator::Voxelator()
-{
-}
-
-Voxelator::~Voxelator()
-{
-}
+#include "Utilities/Voxelator.h"

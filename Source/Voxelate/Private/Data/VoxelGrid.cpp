@@ -23,7 +23,7 @@
  */
 
 
-#include "VoxelGrid.h"
+#include "Data/VoxelGrid.h"
 
 /**
  * Struct constructor
