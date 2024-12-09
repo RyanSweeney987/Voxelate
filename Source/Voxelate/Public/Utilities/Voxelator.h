@@ -31,19 +31,37 @@
 #include "Data/SphereProxy.h"
 #include "Data/TriangleProxy.h"
 #include "Data/VoxelGrid.h"
+#include "PhysicsEngine/BoxElem.h"
+#include "PhysicsEngine/ConvexElem.h"
 #include "Voxelator.generated.h"
 
 /**
- * 
+ * TODO: Implement functionality to voxelate the world based on navigable geometry
+ * TODO: Implement multithreaded batching
+ * TODO: Implement a way to efficiently visualize the voxelated results - debug draw too expensive
+ * TODO: Figure out the best way to store the voxelated results? Here? Some other object? Sparse Voxel Tree?
  */
 USTRUCT()
 struct VOXELATE_API FVoxelator
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UWorld> World = nullptr;
 	
 public:
-	FVoxelator() = default;
+	FVoxelator(UWorld* InWorld);
 	
-	TArray<bool> VoxelateNavigableGeometry(UWorld* InWorld, const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid);
+
+private:
+	void ProcessPrimitiveComponent(UPrimitiveComponent* InPrimitiveComponent, const FVoxelGrid& InVoxelGrid);
+
+	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
+	
+	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
+	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
+	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
+	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
 };
 

@@ -25,7 +25,40 @@
 
 #include "Utilities/Voxelator.h"
 
-TArray<bool> FVoxelator::VoxelateNavigableGeometry(UWorld* InWorld, const FVoxelGrid& InVoxelGrid)
+FVoxelator::FVoxelator(UWorld* InWorld) : World(InWorld)
+{
+}
+
+TArray<bool> FVoxelator::VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid)
 {
 	return TArray<bool>();
+}
+
+void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent* InPrimitiveComponent, const FVoxelGrid& InVoxelGrid)
+{
+}
+
+void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent,
+	const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform)
+{
+}
+
+void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid,
+	const FTransform& InstanceTransform)
+{
+}
+
+void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid,
+	const FTransform& InstanceTransform)
+{
+}
+
+void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelGrid& LocalVoxelGrid,
+	const FTransform& InstanceTransform)
+{
+}
+
+void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelGrid& LocalVoxelGrid,
+	const FTransform& InstanceTransform)
+{
 }
