@@ -40,7 +40,6 @@ enum class ETriangleWinding : uint8
 
 /**
  * Proxy for a triangle - makes it easier to voxelise triangles
- * 
  */
 USTRUCT()
 struct VOXELATE_API FTriangleProxy

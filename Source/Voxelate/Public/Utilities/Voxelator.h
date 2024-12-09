@@ -50,18 +50,19 @@ struct VOXELATE_API FVoxelator
 	TObjectPtr<UWorld> World = nullptr;
 	
 public:
+	FVoxelator() = default;
 	FVoxelator(UWorld* InWorld);
 	
-	TArray<bool> VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid);
+	TArray<bool> VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid) const;
 
 private:
-	void ProcessPrimitiveComponent(UPrimitiveComponent* InPrimitiveComponent, const FVoxelGrid& InVoxelGrid);
+	void ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelGrid& LocalVoxelGrid) const;
 
-	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
+	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
 	
-	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
-	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
-	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
-	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform);
+	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
+	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
+	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
+	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
 };
 

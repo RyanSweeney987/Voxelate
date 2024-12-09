@@ -46,6 +46,24 @@ FOOBBoxProxy::FOOBBoxProxy(const FBox& LocalBounds, const FTransform& InstanceTr
 	bSlerpRotation = InSlerpRotation;
 }
 
+FOOBBoxProxy::FOOBBoxProxy(const FKBoxElem& BoxElement, const FTransform& InstanceTransform,
+	const bool& InSlerpRotation)
+{
+	const FVector Extent = FVector(BoxElement.X, BoxElement.Y, BoxElement.Z) / 2;
+	const FVector Min = BoxElement.Center - Extent;
+	const FVector Max = BoxElement.Center + Extent;
+	const FBox BoxBounds = FBox(Min, Max);
+
+	Center = InstanceTransform.TransformPosition(BoxBounds.GetCenter());
+
+	Orientation = InstanceTransform.GetRotation();
+	const FVector Scale3D = InstanceTransform.GetScale3D().GetAbs();
+
+	Extents = Extent * Scale3D;
+
+	bSlerpRotation = InSlerpRotation;
+}
+
 /**
  * Get the OBB's axis in world space
  * @param OutAxisX The X-axis of the OBB
@@ -316,3 +334,5 @@ FTransform FOOBBoxProxy::ToTransform() const
 	// Construct and return the FTransform
 	return FTransform(Rotation, Position, Scale);
 }
+
+

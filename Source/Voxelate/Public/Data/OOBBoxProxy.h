@@ -25,6 +25,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PhysicsEngine/BoxElem.h"
 #include "OOBBoxProxy.generated.h"
 
 
@@ -49,6 +50,7 @@ struct VOXELATE_API FOOBBoxProxy
 	FOOBBoxProxy() = default;
 	FOOBBoxProxy(const FBoxSphereBounds& LocalBounds, const FTransform& InstanceTransform, const bool& InSlerpRotation = false);
 	FOOBBoxProxy(const FBox& LocalBounds, const FTransform& InstanceTransform, const bool& InSlerpRotation = false);
+	FOOBBoxProxy(const FKBoxElem& BoxElement, const FTransform& InstanceTransform, const bool& InSlerpRotation = false);
 	
 	void GetAxis(FVector& OutAxisX, FVector& OutAxisY, FVector& OutAxisZ) const;
 	void GetCorners(TArray<FVector>& OutCorners) const;
@@ -63,4 +65,31 @@ struct VOXELATE_API FOOBBoxProxy
 	bool Intersect(const FBox& Other) const;
 	
 	FTransform ToTransform() const;
+
+	static void DrawOBB(const UWorld* World, const FOOBBoxProxy& InOBB, const FColor& InColor, const float Thickness = 1.0f)
+	{
+		TArray<FVector> Corners;
+		InOBB.GetCorners(Corners);
+
+		// Optionally, visualize the OBB using debug drawing
+		for (int32 i = 0; i < 8; ++i)
+		{
+			for (int32 j = i + 1; j < 8; ++j)
+			{
+				if (FMath::CountBits(i ^ j) == 1) // Edges differ by one bit
+				{
+					DrawDebugLine(
+						World,
+						Corners[i],
+						Corners[j],
+						InColor,
+						false,
+						5.0f,
+						0,
+						Thickness
+					);
+				}
+			}
+		}
+	}
 };

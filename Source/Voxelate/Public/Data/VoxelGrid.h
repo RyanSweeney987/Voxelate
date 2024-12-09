@@ -25,11 +25,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VoxelGrid.generated.h"
 
 
 /**
  * This struct handles the logic for working with a voxel grid
  * It does not handle the actual voxel data, just the grid itself
+ * TODO: Fix issue with being able to get voxels outside of bounds
  */
 USTRUCT()
 struct VOXELATE_API FVoxelGrid
