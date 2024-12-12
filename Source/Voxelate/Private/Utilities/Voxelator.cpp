@@ -28,8 +28,42 @@
 #include "Engine/OverlapResult.h"
 #include "PhysicsEngine/BodySetup.h"
 
+FVoxelator::FVoxelator()
+{
+	// World = UWorld::CreateWorld()
+}
+
 FVoxelator::FVoxelator(UWorld* InWorld) : World(InWorld)
 {
+	
+}
+
+FVoxelator::~FVoxelator()
+{
+	// if(bIsGeneratedWorld)
+	// {
+	// 	World->DestroyWorld(true);
+	// }
+}
+
+
+/**
+ * Voxelate a single actor in the world
+ * @param Actor the actor to voxelate
+ * @param InVoxelGrid the voxel grid to populate
+ * @return Array of booleans representing the voxelated actor
+ */
+TArray<bool> FVoxelator::VoxelateActor(const AActor* Actor, const FVoxelGrid& InVoxelGrid) const
+{
+	TArray<bool> Result;
+	Result.SetNumUninitialized(InVoxelGrid.GetVoxelCount());
+
+	const FVector& BoxOrigin = InVoxelGrid.GetBounds().GetCenter();
+	const FVector& BoxExtent = InVoxelGrid.GetBounds().GetExtent();
+
+	// TODO: Iterate over all components of the actor
+	
+	return TArray<bool>();
 }
 
 /**
@@ -39,15 +73,21 @@ FVoxelator::FVoxelator(UWorld* InWorld) : World(InWorld)
  */
 TArray<bool> FVoxelator::VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid) const
 {
+	checkf(World, TEXT("World is null"));
+	
 	TArray<bool> Result;
 	Result.SetNumUninitialized(InVoxelGrid.GetVoxelCount());
 
 	const FVector& BoxOrigin = InVoxelGrid.GetBounds().GetCenter();
 	const FVector& BoxExtent = InVoxelGrid.GetBounds().GetExtent();
-	
+
+	// Gets all overlapping objects in the world
 	TArray<FOverlapResult> OverlappingActorsResults;
 	World->OverlapMultiByObjectType(OverlappingActorsResults, BoxOrigin, FQuat::Identity, FCollisionObjectQueryParams::AllObjects, FCollisionShape::MakeBox(BoxExtent));
 
+	// TODO: Return occupancy results
+
+	// Iterate over each overlapping actor - only process navigation relevant components
 	for(const auto OverlapResult : OverlappingActorsResults)
 	{
 		if(OverlapResult.GetComponent()->IsNavigationRelevant())
@@ -69,7 +109,7 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 	if(InPrimitiveComponent.IsA(ULandscapeHeightfieldCollisionComponent::StaticClass()))
 	{
 		ULandscapeHeightfieldCollisionComponent* LandscapeComponent = Cast<ULandscapeHeightfieldCollisionComponent>(&InPrimitiveComponent);
-		ProcessLandscape(*LandscapeComponent, LocalVoxelGrid, InPrimitiveComponent.GetNavigableGeometryTransform());
+		ProcessLandscape(*LandscapeComponent, LocalVoxelGrid);
 
 		return;
 	} 
@@ -101,15 +141,20 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 }
 
 void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent,
-	const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const
+	const FVoxelGrid& LocalVoxelGrid) const
 {
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
-	// https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-technical-guide-in-unreal-engine#calculatingheightmapzscale
+	const FVoxelGrid LandscapeVoxelGrid(LandscapeComponent);
+	// DrawDebugBox(World, LandscapeVoxelGrid.GetBounds().GetCenter(), LandscapeVoxelGrid.GetBounds().GetExtent(), FColor::Purple, false, 5.0f);
 	
-	const ALandscapeProxy* Proxy = LandscapeComponent.GetLandscapeProxy();
-	const int32 ComponentSize = Proxy->ComponentSizeQuads;
+	// https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-technical-guide-in-unreal-engine#calculatingheightmapzscale
+
+	const FTransform InstanceTransform = LandscapeComponent.GetNavigableGeometryTransform();
+	
+	const int32 ComponentSize = LandscapeComponent.CollisionSizeQuads;
 	const FVector Size = InstanceTransform.GetScale3D();
+	const FVector Location = InstanceTransform.GetLocation();
 
 	// Get landscape collision height data
 	const uint16* CollisionHeightData = (uint16*)LandscapeComponent.CollisionHeightData.LockReadOnly();
@@ -118,12 +163,11 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 	TArray<double> CollisionHeights;
 	CollisionHeights.SetNumUninitialized(ElementCount);
 	
-	for(int64 Index = 0; Index < ElementCount; Index++)
+	for(int64 i = 0; i < ElementCount; i++)
 	{
-		const uint16 HeightValue = CollisionHeightData[Index];
+		const uint16 HeightValue = CollisionHeightData[i];
 		const double Height = FMath::Lerp(-256.0, 255.992, static_cast<double>(HeightValue) / static_cast<double>(TNumericLimits<uint16>::Max())) * Size.Z;
-		// const double Height = HeightValue - (TNumericLimits<uint16>::Max() / 2);
-		CollisionHeights.Add(Height);
+		CollisionHeights[i] = Height;
 	}	
 	
 	LandscapeComponent.CollisionHeightData.Unlock();
@@ -133,25 +177,31 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 	{
 		for(int32 X = 0; X < ComponentSize; X++)
 		{
-			const FVector Current = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
-			const FVector Right = FVector((X + 1) * Size.X, Y * Size.Y, CollisionHeights[(X + 1) + Y * (ComponentSize + 1)]);
-			const FVector Up = FVector(X * Size.X, (Y + 1) * Size.Y, CollisionHeights[X + (Y + 1) * (ComponentSize + 1)]);
-			const FVector Diagonal = FVector((X + 1) * Size.X, (Y + 1) * Size.Y, CollisionHeights[(X + 1) + (Y + 1) * (ComponentSize + 1)]);
-
-			const FVector Min = FVector::Min(Current, FVector::Min(Right, FVector::Min(Up, Diagonal)));
-			const FVector Max = FVector::Max(Current, FVector::Max(Right, FVector::Max(Up, Diagonal)));
-
-			const FBox Bounds = FBox(Min, Max);
-
-			DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Green, false, 5.0f);
+			// const FVector Current = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
+			// const FVector Right = FVector((X + 1) * Size.X, Y * Size.Y, CollisionHeights[(X + 1) + Y * (ComponentSize + 1)]);
+			// const FVector Up = FVector(X * Size.X, (Y + 1) * Size.Y, CollisionHeights[X + (Y + 1) * (ComponentSize + 1)]);
+			// const FVector Diagonal = FVector((X + 1) * Size.X, (Y + 1) * Size.Y, CollisionHeights[(X + 1) + (Y + 1) * (ComponentSize + 1)]);
+			//
+			// const FVector Min = FVector::Min(Current, FVector::Min(Right, FVector::Min(Up, Diagonal)));
+			// const FVector Max = FVector::Max(Current, FVector::Max(Right, FVector::Max(Up, Diagonal)));
+			//
+			// const FBox Bounds = FBox(Min, Max);
+			//
+			// DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Green, false, 5.0f);
 			
-			// const FVector Start = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
-			// const FVector StartWorldLocation = Start + InstanceTransform.GetLocation();
-			//
-			// const FVector End = FVector((X + 1) * Size.X, Y * Size.Y, CollisionHeights[(X + 1) + Y * (ComponentSize + 1)]);
-			// const FVector EndWorldLocation = End + InstanceTransform.GetLocation();
-			//
-			// DrawDebugBox(World, StartWorldLocation, FVector(10, 10, 10), FColor::Green, false, 5.0f);
+			const FVector Start = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
+			const FVector StartWorldLocation = Start + Location;
+			
+			// DrawDebugBox(World, StartWorldLocation, FVector(10, 10, 10), FColor::Cyan, false, 5.0f);
+		}
+	}
+	
+	for(int32 Y = 0; Y < LandscapeVoxelGrid.GetVectorVoxelCount().Y; Y++)
+	{
+		for(int32 X = 0; X < LandscapeVoxelGrid.GetVectorVoxelCount().X; X++)
+		{
+			FBox VoxelBounds = LandscapeVoxelGrid.GetVoxelBounds(FIntVector(X, Y, 0));
+			// DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Blue, false, 5.0f);
 		}
 	}
 
@@ -172,6 +222,14 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGr
 	// Use OOBB for collision detection of the box collision element
 	const FOOBBoxProxy BoxProxy(BoxElement, InstanceTransform, true);
 
+	const FVector Extent = FVector(BoxElement.X, BoxElement.Y, BoxElement.Z) / 2;
+	const FVector Min = InstanceTransform.TransformPosition(BoxElement.Center - Extent);
+	const FVector Max = InstanceTransform.TransformPosition(BoxElement.Center + Extent);
+	const FBox BoxBounds = FBox(Min, Max);
+	DrawDebugBox(World, BoxBounds.GetCenter(), BoxBounds.GetExtent(), FColor::Cyan, false, 5.0f);
+
+	// TODO: Take into account of scale
+	
 	// Iterate over the local grid along the horizontal XY plane
 	for(int32 Y = 0; Y < LocalGridSize.Y; Y++)
 	{

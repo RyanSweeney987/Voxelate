@@ -25,6 +25,9 @@
 
 #include "Data/VoxelGrid.h"
 
+#include "LandscapeInfo.h"
+#include "LandscapeProxy.h"
+
 /**
  * Struct constructor
  * @param InVoxelSize The size of each voxel in world space
@@ -34,6 +37,20 @@ FVoxelGrid::FVoxelGrid(const FVector& InVoxelSize, const FBox& InBounds)
 {
 	Init(InVoxelSize, InBounds);
 }
+
+FVoxelGrid::FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
+{
+	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
+	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
+	
+	const FVector QuadSize = ComponentBounds.GetSize() / FVector(
+		FMath::Sqrt(static_cast<double>(ComponentSize)),
+		FMath::Sqrt(static_cast<double>(ComponentSize)),
+		1);
+
+	Init(QuadSize, ComponentBounds);
+}
+
 
 /**
  * Initializes the voxel grid
@@ -342,13 +359,18 @@ TArray<FIntVector> FVoxelGrid::GetVoxelCoordinatesFromBounds(const FBox& InBound
  */
 FVoxelGrid FVoxelGrid::GetSubGrid(const FBox& InBounds) const
 {
-	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	FVector BoundsMin = InBounds.Min;
+	// Clamp the input bounds to the current bounds
+	const FBox NewBounds = Bounds.Overlap(InBounds);
+
+	checkf(NewBounds.IsValid, TEXT("Invalid bounds"));
+	
+	// Round bounds to the nearest voxel size inclusive (so anything partial gets included)
+	FVector BoundsMin = NewBounds.Min;
 	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
 	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
 	BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
 	
-	FVector BoundsMax = InBounds.Max;
+	FVector BoundsMax = NewBounds.Max;
 	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
 	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
 	BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;

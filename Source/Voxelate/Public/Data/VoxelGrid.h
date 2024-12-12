@@ -25,6 +25,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LandscapeProxy.h"
 #include "VoxelGrid.generated.h"
 
 
@@ -51,6 +52,8 @@ protected:
 public:
 	FVoxelGrid() = default;
 	FVoxelGrid(const FVector& InVoxelSize, const FBox& InBounds);
+	FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
+	
 	void Init(const FVector& InVoxelSize, const FBox& InBounds);
 
 	FBox GetBounds() const;
@@ -76,4 +79,6 @@ public:
 	TArray<FIntVector> GetVoxelCoordinatesFromBounds(const FBox& InBounds) const;
 	
 	FVoxelGrid GetSubGrid(const FBox& InBounds) const;
+private:
+	
 };

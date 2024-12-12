@@ -48,17 +48,22 @@ struct VOXELATE_API FVoxelator
 
 	UPROPERTY()
 	TObjectPtr<UWorld> World = nullptr;
-	
+
+	UPROPERTY()
+	bool bIsGeneratedWorld = false;
 public:
-	FVoxelator() = default;
+	FVoxelator();
 	FVoxelator(UWorld* InWorld);
-	
+
+	~FVoxelator();
+
+	TArray<bool> VoxelateActor(const AActor* Actor, const FVoxelGrid& InVoxelGrid) const;
 	TArray<bool> VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid) const;
 
 private:
 	void ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelGrid& LocalVoxelGrid) const;
 
-	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
+	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelGrid& LocalVoxelGrid) const;
 	
 	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
 	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
