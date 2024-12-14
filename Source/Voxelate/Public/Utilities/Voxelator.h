@@ -57,7 +57,7 @@ public:
 
 	~FVoxelator();
 
-	TArray<bool> VoxelateActor(const AActor* Actor, const FVoxelGrid& InVoxelGrid) const;
+	TArray<bool> VoxelateActor(const AActor* InActor, const FVoxelGrid& InVoxelGrid) const;
 	TArray<bool> VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid) const;
 
 private:

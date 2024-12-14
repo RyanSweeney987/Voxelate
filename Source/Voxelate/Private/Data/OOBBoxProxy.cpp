@@ -49,19 +49,41 @@ FOOBBoxProxy::FOOBBoxProxy(const FBox& LocalBounds, const FTransform& InstanceTr
 FOOBBoxProxy::FOOBBoxProxy(const FKBoxElem& BoxElement, const FTransform& InstanceTransform,
 	const bool& InSlerpRotation)
 {
-	const FVector Extent = FVector(BoxElement.X, BoxElement.Y, BoxElement.Z) / 2;
-	const FVector Min = BoxElement.Center - Extent;
-	const FVector Max = BoxElement.Center + Extent;
-	const FBox BoxBounds = FBox(Min, Max);
-
-	Center = InstanceTransform.TransformPosition(BoxBounds.GetCenter());
+	Center = InstanceTransform.TransformPosition(BoxElement.Center);
 
 	Orientation = InstanceTransform.GetRotation();
+	
 	const FVector Scale3D = InstanceTransform.GetScale3D().GetAbs();
-
-	Extents = Extent * Scale3D;
+	Extents = (FVector(BoxElement.X, BoxElement.Y, BoxElement.Z) / 2.0) * Scale3D;
 
 	bSlerpRotation = InSlerpRotation;
+}
+
+/**
+ * Get the center of the OBB
+ * @return The center of the OBB
+ */
+FVector FOOBBoxProxy::GetCenter() const
+{
+	return Center;
+}
+
+/**
+ * Get the half-size extents of the OBB
+ * @return The half-size extents of the OBB
+ */
+FVector FOOBBoxProxy::GetExtent() const
+{
+	return Extents;
+}
+
+/**
+ * Get the size of the OBB
+ * @return The size of the OBB
+ */
+FVector FOOBBoxProxy::GetSize() const
+{
+	return Extents * 2.0;
 }
 
 /**
@@ -164,8 +186,8 @@ FOOBBoxProxy& FOOBBoxProxy::operator+=(const FOOBBoxProxy& Other)
 bool FOOBBoxProxy::IsInsideOrOn(const FVector& Point) const
 {
 	// Transform the point to the OBB's local space
-	const FVector LocalPoint = Orientation.UnrotateVector(Point - Center);
-
+	const FVector LocalPoint = Point - Center;
+	
 	// Check if the point lies within the extents
 	return FMath::Abs(LocalPoint.X) <= Extents.X &&
 		FMath::Abs(LocalPoint.Y) <= Extents.Y &&
@@ -202,10 +224,10 @@ bool FOOBBoxProxy::IsInsideOrOn(const FOOBBoxProxy& Other) const
  * @param Other The AABB to check against
  * @return True if this OBB is entirely inside or on the AABB
  */
-bool FOOBBoxProxy::IsInsideOrOn(const FBox& Other) const
-{
-	return IsInsideOrOn(FOOBBoxProxy(Other, FTransform::Identity, true));
-}
+// bool FOOBBoxProxy::IsInsideOrOn(const FBox& Other) const
+// {
+// 	return IsInsideOrOn(FOOBBoxProxy(Other, FTransform::Identity, true));
+// }
 
 /**
  * Check if this OBB intersects with another OBB
@@ -311,10 +333,10 @@ bool FOOBBoxProxy::Intersect(const FOOBBoxProxy& Other) const
  * @param Other The AABB to check against
  * @return True if this OBB intersects with the AABB
  */
-bool FOOBBoxProxy::Intersect(const FBox& Other) const
-{
-	return Intersect(FOOBBoxProxy(Other, FTransform::Identity, true));
-}
+// bool FOOBBoxProxy::Intersect(const FBox& Other) const
+// {
+// 	return Intersect(FOOBBoxProxy(Other, FTransform::Identity, true));
+// }
 
 /**
  * Convert the OBB to an FTransform

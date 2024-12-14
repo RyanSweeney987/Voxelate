@@ -53,15 +53,24 @@ FVoxelator::~FVoxelator()
  * @param InVoxelGrid the voxel grid to populate
  * @return Array of booleans representing the voxelated actor
  */
-TArray<bool> FVoxelator::VoxelateActor(const AActor* Actor, const FVoxelGrid& InVoxelGrid) const
+TArray<bool> FVoxelator::VoxelateActor(const AActor* InActor, const FVoxelGrid& InVoxelGrid) const
 {
 	TArray<bool> Result;
 	Result.SetNumUninitialized(InVoxelGrid.GetVoxelCount());
 
-	const FVector& BoxOrigin = InVoxelGrid.GetBounds().GetCenter();
-	const FVector& BoxExtent = InVoxelGrid.GetBounds().GetExtent();
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	InActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
 
 	// TODO: Iterate over all components of the actor
+
+	for(const auto Component : PrimitiveComponents)
+	{
+		if(Component)
+		{
+			const FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(Component->Bounds.GetBox());
+			ProcessPrimitiveComponent(*Component, LocalVoxelGrid);
+		}
+	}
 	
 	return TArray<bool>();
 }
@@ -221,14 +230,7 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGr
 	
 	// Use OOBB for collision detection of the box collision element
 	const FOOBBoxProxy BoxProxy(BoxElement, InstanceTransform, true);
-
-	const FVector Extent = FVector(BoxElement.X, BoxElement.Y, BoxElement.Z) / 2;
-	const FVector Min = InstanceTransform.TransformPosition(BoxElement.Center - Extent);
-	const FVector Max = InstanceTransform.TransformPosition(BoxElement.Center + Extent);
-	const FBox BoxBounds = FBox(Min, Max);
-	DrawDebugBox(World, BoxBounds.GetCenter(), BoxBounds.GetExtent(), FColor::Cyan, false, 5.0f);
-
-	// TODO: Take into account of scale
+	// TODO: Needs more testing but works ok if going from the AABB to OOBB rather than OOBB to AABB
 	
 	// Iterate over the local grid along the horizontal XY plane
 	for(int32 Y = 0; Y < LocalGridSize.Y; Y++)
@@ -239,10 +241,11 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGr
 			for(int32 Z = 0; Z < LocalGridSize.Z; Z++)
 			{
 				const FBox VoxelBounds = LocalVoxelGrid.GetVoxelBounds(FIntVector(X, Y, Z));
+				const FOOBBoxProxy VoxelBoundsProxy(VoxelBounds, FTransform::Identity, false);
 				
 				bool bIntersects = false;
 
-				if(BoxProxy.IsInsideOrOn(VoxelBounds) || BoxProxy.Intersect(VoxelBounds))
+				if(VoxelBoundsProxy.IsInsideOrOn(BoxProxy) || VoxelBoundsProxy.Intersect(BoxProxy))
                 {
                     bIntersects = true;
                 }
@@ -250,7 +253,7 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGr
 				// Update the span min and max if the box bounds intersect with the OOBB voxel bounds
 				if (bIntersects)
 				{
-					DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Green, false, 5.0f);
+					DrawDebugBox(World, VoxelBoundsProxy.GetCenter(), VoxelBoundsProxy.GetExtent(), FColor::Green, false, 5.0f);
 				}
 			}
 		}

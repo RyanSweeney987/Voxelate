@@ -51,6 +51,10 @@ struct VOXELATE_API FOOBBoxProxy
 	FOOBBoxProxy(const FBoxSphereBounds& LocalBounds, const FTransform& InstanceTransform, const bool& InSlerpRotation = false);
 	FOOBBoxProxy(const FBox& LocalBounds, const FTransform& InstanceTransform, const bool& InSlerpRotation = false);
 	FOOBBoxProxy(const FKBoxElem& BoxElement, const FTransform& InstanceTransform, const bool& InSlerpRotation = false);
+
+	FVector GetCenter() const;
+	FVector GetExtent() const;
+	FVector GetSize() const;
 	
 	void GetAxis(FVector& OutAxisX, FVector& OutAxisY, FVector& OutAxisZ) const;
 	void GetCorners(TArray<FVector>& OutCorners) const;
@@ -59,14 +63,14 @@ struct VOXELATE_API FOOBBoxProxy
 	
 	bool IsInsideOrOn(const FVector& Point) const;
 	bool IsInsideOrOn(const FOOBBoxProxy& Other) const;
-	bool IsInsideOrOn(const FBox& Other) const;
+	// bool IsInsideOrOn(const FBox& Other) const;
 	
 	bool Intersect(const FOOBBoxProxy& Other) const;
-	bool Intersect(const FBox& Other) const;
+	// bool Intersect(const FBox& Other) const;
 	
 	FTransform ToTransform() const;
 
-	static void DrawOBB(const UWorld* World, const FOOBBoxProxy& InOBB, const FColor& InColor, const float Thickness = 1.0f)
+	static void DrawOBB(const UWorld* World, const FOOBBoxProxy& InOBB, const FColor& InColor, const bool bPersistentLines = false, const float LifeTime = -1.0, const uint8 DepthPriority = 0, const float Thickness = 0.f)
 	{
 		TArray<FVector> Corners;
 		InOBB.GetCorners(Corners);
@@ -83,9 +87,9 @@ struct VOXELATE_API FOOBBoxProxy
 						Corners[i],
 						Corners[j],
 						InColor,
-						false,
-						5.0f,
-						0,
+						bPersistentLines,
+						LifeTime,
+						DepthPriority,
 						Thickness
 					);
 				}
