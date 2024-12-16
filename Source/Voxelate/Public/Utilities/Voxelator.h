@@ -35,6 +35,9 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "Voxelator.generated.h"
 
+// TODO: add ability to voxelate based on the visual mesh
+// TODO: Add enum for mesh types
+
 /**
  * TODO: Implement functionality to voxelate the world based on navigable geometry
  * TODO: Implement multithreaded batching
@@ -52,22 +55,27 @@ struct VOXELATE_API FVoxelator
 	UPROPERTY()
 	bool bIsGeneratedWorld = false;
 public:
-	FVoxelator();
-	FVoxelator(UWorld* InWorld);
+	// UVoxelator();
+	// UVoxelator(UWorld* InWorld);
+	//
+	// ~UVoxelator();
 
-	~FVoxelator();
-
-	TArray<bool> VoxelateActor(const AActor* InActor, const FVoxelGrid& InVoxelGrid) const;
-	TArray<bool> VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid) const;
+	void Init(UWorld* InWorld);
+	
+	void VoxelateActor(const AActor* InActor, FVoxelData& OutVoxelData) const;
+	void VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const;
 
 private:
-	void ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelGrid& LocalVoxelGrid) const;
+	void ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelData& InVoxelData) const;
 
-	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelGrid& LocalVoxelGrid) const;
-	
-	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
-	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
-	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
-	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelGrid& LocalVoxelGrid, const FTransform& InstanceTransform) const;
+	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelData& InVoxelData) const;
+
+	// Process collision meshes
+	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+
+	// Process visual mesh
+	void ProcessConvex() const;
 };
-

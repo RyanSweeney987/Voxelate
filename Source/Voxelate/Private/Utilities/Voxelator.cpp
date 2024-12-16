@@ -28,65 +28,53 @@
 #include "Engine/OverlapResult.h"
 #include "PhysicsEngine/BodySetup.h"
 
-FVoxelator::FVoxelator()
-{
-	// World = UWorld::CreateWorld()
-}
 
-FVoxelator::FVoxelator(UWorld* InWorld) : World(InWorld)
+void FVoxelator::Init(UWorld* InWorld)
 {
-	
+	World = InWorld;
 }
-
-FVoxelator::~FVoxelator()
-{
-	// if(bIsGeneratedWorld)
-	// {
-	// 	World->DestroyWorld(true);
-	// }
-}
-
 
 /**
  * Voxelate a single actor in the world
- * @param Actor the actor to voxelate
- * @param InVoxelGrid the voxel grid to populate
+ * @param InActor the actor to voxelate
+ * @param OutVoxelData the voxel grid to populate
  * @return Array of booleans representing the voxelated actor
  */
-TArray<bool> FVoxelator::VoxelateActor(const AActor* InActor, const FVoxelGrid& InVoxelGrid) const
+void FVoxelator::VoxelateActor(const AActor* InActor, FVoxelData& OutVoxelData) const
 {
-	TArray<bool> Result;
-	Result.SetNumUninitialized(InVoxelGrid.GetVoxelCount());
+	const FVoxelGrid& InVoxelGrid = OutVoxelData.GetVoxelGrid();
 
+	// Get the primitive components of the actor - these may have collision geometry
 	TArray<UPrimitiveComponent*> PrimitiveComponents;
 	InActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-
-	// TODO: Iterate over all components of the actor
 
 	for(const auto Component : PrimitiveComponents)
 	{
 		if(Component)
 		{
-			const FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(Component->Bounds.GetBox());
-			ProcessPrimitiveComponent(*Component, LocalVoxelGrid);
+			FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(Component->Bounds.GetBox());
+			FVoxelData LocalVoxelData(LocalVoxelGrid);
+
+			// Process the primitive component
+			ProcessPrimitiveComponent(*Component, LocalVoxelData);
+
+			// Apply the local voxel data to the output voxel data
+			OutVoxelData.And(LocalVoxelData);
 		}
 	}
-	
-	return TArray<bool>();
 }
 
 /**
  * Voxelate the navigable geometry of the world
- * @param InVoxelGrid the voxel grid to populate
+ * @param OutVoxelData the voxel grid data to populate
  * @return Array of booleans representing the voxelated world
  */
-TArray<bool> FVoxelator::VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid) const
+void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 {
 	checkf(World, TEXT("World is null"));
-	
-	TArray<bool> Result;
-	Result.SetNumUninitialized(InVoxelGrid.GetVoxelCount());
 
+	const FVoxelGrid& InVoxelGrid = OutVoxelData.GetVoxelGrid();
+	
 	const FVector& BoxOrigin = InVoxelGrid.GetBounds().GetCenter();
 	const FVector& BoxExtent = InVoxelGrid.GetBounds().GetExtent();
 
@@ -108,11 +96,9 @@ TArray<bool> FVoxelator::VoxelateNavigableGeometry(const FVoxelGrid& InVoxelGrid
 			}
 		}
 	}
-	
-	return Result;
 }
 
-void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelGrid& LocalVoxelGrid) const
+void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelData& InVoxelData) const
 {
 	// Check for Landscape
 	if(InPrimitiveComponent.IsA(ULandscapeHeightfieldCollisionComponent::StaticClass()))
@@ -149,8 +135,7 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 	}
 }
 
-void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent,
-	const FVoxelGrid& LocalVoxelGrid) const
+void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelData& InVoxelData) const
 {
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
@@ -223,14 +208,17 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 	}
 }
 
-void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGrid& LocalVoxelGrid,
+void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelData& InVoxelData,
 	const FTransform& InstanceTransform) const
 {
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
+
+	// FByteBulkData BulkData;
 	
 	// Use OOBB for collision detection of the box collision element
 	const FOOBBoxProxy BoxProxy(BoxElement, InstanceTransform, true);
 	// TODO: Needs more testing but works ok if going from the AABB to OOBB rather than OOBB to AABB
+	// TODO: Alternatively (but slower), could get the 8 corners, make triangles and use the same method as the convex mesh
 	
 	// Iterate over the local grid along the horizontal XY plane
 	for(int32 Y = 0; Y < LocalGridSize.Y; Y++)
@@ -260,7 +248,7 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelGr
 	}
 }
 
-void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelGrid& LocalVoxelGrid,
+void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelData& InVoxelData,
 	const FTransform& InstanceTransform) const
 {
 	// AABB test
@@ -297,7 +285,7 @@ void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, const
 	}
 }
 
-void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelGrid& LocalVoxelGrid,
+void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelData& InVoxelData,
 	const FTransform& InstanceTransform) const
 {
 	// AABB test
@@ -329,7 +317,7 @@ void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, cons
 	}
 }
 
-void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelGrid& LocalVoxelGrid,
+void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelData& InVoxelData,
 	const FTransform& InstanceTransform) const
 {
 	const TArray<int32> Indices = ConvexElement.IndexData;
@@ -375,4 +363,8 @@ void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, const
 			}
 		}
 	}
+}
+
+void FVoxelator::ProcessConvex() const
+{
 }

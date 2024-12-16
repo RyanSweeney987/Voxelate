@@ -35,7 +35,7 @@
  */
 FVoxelGrid::FVoxelGrid(const FVector& InVoxelSize, const FBox& InBounds)
 {
-	Init(InVoxelSize, InBounds);
+	FVoxelGrid::Init(InVoxelSize, InBounds);
 }
 
 FVoxelGrid::FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
@@ -48,7 +48,19 @@ FVoxelGrid::FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscap
 		FMath::Sqrt(static_cast<double>(ComponentSize)),
 		1);
 
-	Init(QuadSize, ComponentBounds);
+	FVoxelGrid::Init(QuadSize, ComponentBounds);
+}
+
+/**
+ * Creates a new voxel grid from an existing voxel grid and new bounds
+ * @param InVoxelGrid The voxel grid to copy
+ * @param InBounds The bounds of the new voxel grid
+ */
+FVoxelGrid::FVoxelGrid(const FVoxelGrid& InVoxelGrid, const FBox& InBounds)
+{
+	checkf(InVoxelGrid.Bounds.IsInsideOrOn(InBounds), TEXT("New bounds must be inside the existing bounds"));
+
+	FVoxelGrid::Init(InVoxelGrid, InBounds);
 }
 
 
@@ -80,6 +92,35 @@ void FVoxelGrid::Init(const FVector& InVoxelSize, const FBox& InBounds)
 		FMath::CeilToInt(Bounds.GetSize().Z / VoxelSize.Z));
 }
 
+void FVoxelGrid::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
+{
+	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
+	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
+	
+	const FVector QuadSize = ComponentBounds.GetSize() / FVector(
+		FMath::Sqrt(static_cast<double>(ComponentSize)),
+		FMath::Sqrt(static_cast<double>(ComponentSize)),
+		1);
+
+	Init(QuadSize, ComponentBounds);
+}
+
+/**
+ * Initializes the voxel grid based on an existing voxel grid and new bounds
+ * @param InVoxelGrid The voxel grid to copy
+ * @param InBounds The bounds of the new voxel grid
+ */
+void FVoxelGrid::Init(const FVoxelGrid& InVoxelGrid, const FBox& InBounds)
+{
+	checkf(InVoxelGrid.Bounds.IsInsideOrOn(InBounds), TEXT("New bounds must be inside the existing bounds"));
+
+	// Initialise this grid
+	Init(InVoxelGrid.VoxelSize, InBounds);
+
+	// Calculate the offset of the new grid
+	Offset = InVoxelGrid.GetVoxelCoordinate(InBounds.Min);
+}
+
 /**
  * Gets the bounds of the voxel grid
  * @return The bounds of the voxel grid
@@ -105,6 +146,15 @@ int32 FVoxelGrid::GetVoxelCount() const
 FIntVector FVoxelGrid::GetVectorVoxelCount() const
 {
 	return VoxelCount;
+}
+
+/**
+ * Gets the offset of the grid
+ * @return The offset of the grid
+ */
+TOptional<FIntVector> FVoxelGrid::GetOffset() const
+{
+	return Offset;
 }
 
 /**
@@ -137,6 +187,16 @@ bool FVoxelGrid::IsVoxelCoordinateValid(const FIntVector& InCoordinate) const
 bool FVoxelGrid::IsLocationInBounds(const FVector& InLocation) const
 {
 	return Bounds.IsInsideOrOn(InLocation);
+}
+
+/**
+ * Checks if the grid is inside this grid
+ * @param InVoxelGrid The grid to check if it's inside this grid
+ * @return true if the grid is inside this grid, false otherwise
+ */
+bool FVoxelGrid::IsGridInside(const FVoxelGrid& InVoxelGrid) const
+{
+	return Bounds.IsInsideOrOn(InVoxelGrid.Bounds);
 }
 
 /**
@@ -359,21 +419,148 @@ TArray<FIntVector> FVoxelGrid::GetVoxelCoordinatesFromBounds(const FBox& InBound
  */
 FVoxelGrid FVoxelGrid::GetSubGrid(const FBox& InBounds) const
 {
-	// Clamp the input bounds to the current bounds
-	const FBox NewBounds = Bounds.Overlap(InBounds);
+	return FVoxelGrid(*this, InBounds);
+}
 
-	checkf(NewBounds.IsValid, TEXT("Invalid bounds"));
-	
-	// Round bounds to the nearest voxel size inclusive (so anything partial gets included)
-	FVector BoundsMin = NewBounds.Min;
-	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
-	
-	FVector BoundsMax = NewBounds.Max;
-	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
+/**
+ * Checks if two voxel grids are equal
+ * @param InVoxelGrid The voxel grid to compare with
+ * @return true if the voxel grids are equal, false otherwise
+ */
+bool FVoxelGrid::operator==(const FVoxelGrid& InVoxelGrid) const
+{
+	return VoxelSize == InVoxelGrid.VoxelSize && Bounds == InVoxelGrid.Bounds;
+}
 
-	return FVoxelGrid(VoxelSize, FBox(BoundsMin, BoundsMax));
+/**
+ * Checks if two voxel grids are not equal
+ * @param InVoxelGrid The voxel grid to compare with
+ * @return true if the voxel grids are not equal, false otherwise
+ */
+bool FVoxelGrid::operator!=(const FVoxelGrid& InVoxelGrid) const
+{
+	return !(*this == InVoxelGrid);
+}
+
+/**
+ * Struct constructor
+ * @param InVoxelGrid The voxel grid that this data is associated with
+ */
+FVoxelData::FVoxelData(FVoxelGrid& InVoxelGrid) : VoxelGrid(InVoxelGrid)
+{
+	const int32 NumVoxels = VoxelGrid.GetVoxelCount();
+	OccupancyData.Init(false, NumVoxels);
+}
+
+/**
+ * Copy constructor
+ * @param InVoxelData The voxel data to copy
+ */
+FVoxelData::FVoxelData(const FVoxelData& InVoxelData) : VoxelGrid(InVoxelData.VoxelGrid)
+{
+	OccupancyData = InVoxelData.OccupancyData;
+}
+
+/**
+ * Performs a bitwise AND operation on the voxel data
+ * @param InVoxelData The voxel data to AND with
+ * @return The resulting voxel data
+ */
+FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
+{
+	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
+	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+
+	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGrid().GetOffset(); Offset.IsSet())
+	{
+		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
+		{
+			const int32 Index = VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
+
+			OccupancyData[Index] = OccupancyData[Index] && InVoxelData.OccupancyData[i];
+		}
+	} else
+	{
+		for(int32 i = 0; i < OccupancyData.Num(); i++)
+		{
+			OccupancyData[i] = OccupancyData[i] && InVoxelData.OccupancyData[i];
+		}
+	}
+	
+	return *this;
+}
+
+/**
+ * Performs a bitwise OR operation on the voxel data
+ * @param InVoxelData The voxel data to OR with
+ * @return The resulting voxel data
+ */
+FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
+{
+	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
+	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+
+	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGrid().GetOffset(); Offset.IsSet())
+	{
+		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
+		{
+			const int32 Index = i + VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
+
+			OccupancyData[Index] = OccupancyData[Index] || InVoxelData.OccupancyData[i];
+		}
+	} else
+	{
+		for(int32 i = 0; i < OccupancyData.Num(); i++)
+		{
+			OccupancyData[i] = OccupancyData[i] || InVoxelData.OccupancyData[i];
+		}
+	}
+
+	return *this;
+}
+
+/**
+ * Performs a bitwise XOR operation on the voxel data
+ * @param InVoxelData The voxel data to XOR with
+ * @return The resulting voxel data
+ */
+FVoxelData& FVoxelData::Xor(const FVoxelData& InVoxelData)
+{
+	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
+	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+
+	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGrid().GetOffset(); Offset.IsSet())
+	{
+		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
+		{
+			const int32 Index = i + VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
+
+			OccupancyData[Index] = OccupancyData[Index] || InVoxelData.OccupancyData[i];
+		}
+	} else
+	{
+		for(int32 i = 0; i < OccupancyData.Num(); i++)
+		{
+			OccupancyData[i] = OccupancyData[i] ^ InVoxelData.OccupancyData[i];
+		}
+	}
+	
+	return *this;
+}
+
+/**
+ * Gets the voxel grid associated with this data
+ * @return The voxel grid associated with this data
+ */
+FVoxelGrid& FVoxelData::GetVoxelGrid() const
+{
+	return VoxelGrid;
+}
+
+/**
+ * Gets the occupancy data
+ * @return The occupancy data
+ */
+TArray<bool>& FVoxelData::GetOccupancyData() {
+	return OccupancyData;
 }

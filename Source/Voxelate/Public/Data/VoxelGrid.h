@@ -28,11 +28,9 @@
 #include "LandscapeProxy.h"
 #include "VoxelGrid.generated.h"
 
-
 /**
  * This struct handles the logic for working with a voxel grid
- * It does not handle the actual voxel data, just the grid itself
- * TODO: Fix issue with being able to get voxels outside of bounds
+ * It does not handle the actual voxel data, just the grid itself - for now
  */
 USTRUCT()
 struct VOXELATE_API FVoxelGrid
@@ -49,21 +47,33 @@ protected:
 	UPROPERTY()
 	FIntVector VoxelCount = FIntVector::ZeroValue;
 
+	UPROPERTY()
+	TOptional<FIntVector> Offset;
+	
+	// UPROPERTY()
+	// FVoxelGrid* Parent;
 public:
 	FVoxelGrid() = default;
 	FVoxelGrid(const FVector& InVoxelSize, const FBox& InBounds);
 	FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
+	FVoxelGrid(const FVoxelGrid& InVoxelGrid, const FBox& InBounds);
+
+	virtual ~FVoxelGrid() = default;
 	
-	void Init(const FVector& InVoxelSize, const FBox& InBounds);
+	virtual void Init(const FVector& InVoxelSize, const FBox& InBounds);
+	virtual void Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
+	virtual void Init(const FVoxelGrid& InVoxelGrid, const FBox& InBounds);
 
 	FBox GetBounds() const;
-	
 	int32 GetVoxelCount() const;
 	FIntVector GetVectorVoxelCount() const;
+	TOptional<FIntVector> GetOffset() const;
 
 	bool IsVoxelIndexValid(const int32 InIndex) const;
 	bool IsVoxelCoordinateValid(const FIntVector& InCoordinate) const;
 	bool IsLocationInBounds(const FVector& InLocation) const;
+
+	bool IsGridInside(const FVoxelGrid& InVoxelGrid) const;
 	
 	int32 GetVoxelIndex(const FVector& InLocation) const;
 	int32 GetVoxelIndex(const FIntVector& InCoordinate) const;
@@ -79,6 +89,39 @@ public:
 	TArray<FIntVector> GetVoxelCoordinatesFromBounds(const FBox& InBounds) const;
 	
 	FVoxelGrid GetSubGrid(const FBox& InBounds) const;
+
+	bool operator==(const FVoxelGrid& InVoxelGrid) const;
+	bool operator!=(const FVoxelGrid& InVoxelGrid) const;
+
+	
 private:
 	
+};
+
+/**
+ * This struct handles the logic for working with voxel data
+ * It does not handle the actual grid itself, just the data
+ */
+USTRUCT()
+struct FVoxelData
+{
+	GENERATED_BODY()
+
+protected:
+	UPROPERTY()
+	TArray<bool> OccupancyData;
+
+	UPROPERTY()
+	FVoxelGrid& VoxelGrid;
+	
+public:
+	FVoxelData(FVoxelGrid& InVoxelGrid);
+	FVoxelData(const FVoxelData& InVoxelData);
+	
+	FVoxelData& And(const FVoxelData& InVoxelData);
+	FVoxelData& Or(const FVoxelData& InVoxelData);
+	FVoxelData& Xor(const FVoxelData& InVoxelData);
+
+	FVoxelGrid& GetVoxelGrid() const;
+	TArray<bool>& GetOccupancyData();
 };
