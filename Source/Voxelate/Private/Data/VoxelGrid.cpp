@@ -446,7 +446,7 @@ bool FVoxelGrid::operator!=(const FVoxelGrid& InVoxelGrid) const
  * Struct constructor
  * @param InVoxelGrid The voxel grid that this data is associated with
  */
-FVoxelData::FVoxelData(FVoxelGrid& InVoxelGrid) : VoxelGrid(InVoxelGrid)
+FVoxelData::FVoxelData(const FVoxelGrid& InVoxelGrid) : VoxelGrid(InVoxelGrid)
 {
 	const int32 NumVoxels = VoxelGrid.GetVoxelCount();
 	OccupancyData.Init(false, NumVoxels);
@@ -462,6 +462,84 @@ FVoxelData::FVoxelData(const FVoxelData& InVoxelData) : VoxelGrid(InVoxelData.Vo
 }
 
 /**
+ * Gets the occupancy of a voxel at an index
+ * The index must be in the grid bounds
+ * @param InIndex The index of the voxel
+ * @return The occupancy of the voxel
+ */
+bool FVoxelData::GetOccupancy(const int32 InIndex) const
+{
+	checkf(VoxelGrid.IsVoxelIndexValid(InIndex), TEXT("Invalid voxel index %d"), InIndex);
+	
+	return OccupancyData[InIndex];
+}
+
+/**
+ * Gets the occupancy of a voxel at a location
+ * The location must be in the grid bounds
+ * @param InVoxelCoordinate The coordinate of the voxel
+ * @return The occupancy of the voxel
+ */
+bool FVoxelData::GetOccupancy(const FIntVector& InVoxelCoordinate) const
+{
+	checkf(VoxelGrid.IsVoxelCoordinateValid(InVoxelCoordinate), TEXT("Invalid voxel coordinate %s"), *InVoxelCoordinate.ToString());
+
+	return GetOccupancy(VoxelGrid.GetVoxelIndex(InVoxelCoordinate));
+}
+
+/**
+ * Gets the occupancy of a voxel at a location
+ * The location must be in the grid bounds
+ * @param InLocation The location of the voxel
+ * @return The occupancy of the voxel
+ */
+bool FVoxelData::GetOccupancy(const FVector& InLocation) const
+{
+	checkf(VoxelGrid.IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
+
+	return GetOccupancy(VoxelGrid.GetVoxelIndex(InLocation));
+}
+
+/**
+ * Sets the occupancy of a voxel at an index
+ * The index must be in the grid bounds
+ * @param InIndex The index of the voxel
+ * @param bOccupied The occupancy of the voxel
+ */
+void FVoxelData::SetOccupancy(const int32 InIndex, const bool bOccupied)
+{
+	checkf(VoxelGrid.IsVoxelIndexValid(InIndex), TEXT("Invalid voxel index %d"), InIndex);
+
+	OccupancyData[InIndex] = bOccupied;
+}
+
+/**
+ * Sets the occupancy of a voxel at a location
+ * The location must be in the grid bounds
+ * @param InVoxelCoordinate The coordinate of the voxel
+ * @param bOccupied The occupancy of the voxel
+ */
+void FVoxelData::SetOccupancy(const FIntVector& InVoxelCoordinate, const bool bOccupied)
+{
+	checkf(VoxelGrid.IsVoxelCoordinateValid(InVoxelCoordinate), TEXT("Invalid voxel coordinate %s"), *InVoxelCoordinate.ToString());
+
+	OccupancyData[VoxelGrid.GetVoxelIndex(InVoxelCoordinate)] = bOccupied;
+}
+
+/**
+ * Sets the occupancy of a voxel at a location
+ * The location must be in the grid bounds
+ * @param InLocation The location of the voxel
+ * @param bOccupied The occupancy of the voxel
+ */
+void FVoxelData::SetOccupancy(const FVector& InLocation, const bool bOccupied)
+{
+	checkf(VoxelGrid.IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
+
+	OccupancyData[VoxelGrid.GetVoxelIndex(InLocation)] = bOccupied;
+}
+
+/**
  * Performs a bitwise AND operation on the voxel data
  * @param InVoxelData The voxel data to AND with
  * @return The resulting voxel data
@@ -469,9 +547,9 @@ FVoxelData::FVoxelData(const FVoxelData& InVoxelData) : VoxelGrid(InVoxelData.Vo
 FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
 {
 	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+	checkf(OccupancyData.Num() < InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
 
-	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGrid().GetOffset(); Offset.IsSet())
+	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
 	{
 		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
 		{
@@ -498,9 +576,9 @@ FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
 FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
 {
 	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+	checkf(OccupancyData.Num() < InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
 
-	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGrid().GetOffset(); Offset.IsSet())
+	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
 	{
 		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
 		{
@@ -527,9 +605,9 @@ FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
 FVoxelData& FVoxelData::Xor(const FVoxelData& InVoxelData)
 {
 	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+	checkf(OccupancyData.Num() < InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
 
-	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGrid().GetOffset(); Offset.IsSet())
+	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
 	{
 		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
 		{
@@ -552,7 +630,16 @@ FVoxelData& FVoxelData::Xor(const FVoxelData& InVoxelData)
  * Gets the voxel grid associated with this data
  * @return The voxel grid associated with this data
  */
-FVoxelGrid& FVoxelData::GetVoxelGrid() const
+FVoxelGrid& FVoxelData::GetVoxelGrid()
+{
+	return VoxelGrid;
+}
+
+/**
+ * Gets the voxel grid associated with this data
+ * @return The voxel grid associated with this data
+ */
+const FVoxelGrid& FVoxelData::GetVoxelGridConst() const
 {
 	return VoxelGrid;
 }
@@ -563,4 +650,35 @@ FVoxelGrid& FVoxelData::GetVoxelGrid() const
  */
 TArray<bool>& FVoxelData::GetOccupancyData() {
 	return OccupancyData;
+}
+
+/**
+ * Gets the occupancy data
+ * @return The occupancy data
+ */
+const TArray<bool>& FVoxelData::GetOccupancyDataConst() const
+{
+	return OccupancyData;
+}
+
+/**
+ * Gets the indices of all voxels that are occupied
+ * @return The indices of all occupied voxels
+ */
+TArray<int32> FVoxelData::GetOccupiedIndices() const
+{
+	TArray<int32> Result;
+	Result.Reserve(OccupancyData.Num());
+
+	for(int32 i = 0; i < OccupancyData.Num(); i++)
+	{
+		if(OccupancyData[i])
+		{
+			Result.Add(i);
+		}
+	}
+
+	Result.Shrink();
+
+	return Result;
 }

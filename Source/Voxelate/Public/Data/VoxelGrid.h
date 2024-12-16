@@ -112,16 +112,29 @@ protected:
 	TArray<bool> OccupancyData;
 
 	UPROPERTY()
-	FVoxelGrid& VoxelGrid;
+	FVoxelGrid VoxelGrid;
 	
 public:
-	FVoxelData(FVoxelGrid& InVoxelGrid);
+	FVoxelData(const FVoxelGrid& InVoxelGrid);
 	FVoxelData(const FVoxelData& InVoxelData);
+
+	bool GetOccupancy(const int32 InIndex) const;
+	bool GetOccupancy(const FIntVector& InVoxelCoordinate) const;
+	bool GetOccupancy(const FVector& InLocation) const;
+
+	void SetOccupancy(const int32 InIndex, const bool bOccupied);
+	void SetOccupancy(const FIntVector& InVoxelCoordinate, const bool bOccupied);
+	void SetOccupancy(const FVector& InLocation, const bool bOccupied);
 	
 	FVoxelData& And(const FVoxelData& InVoxelData);
 	FVoxelData& Or(const FVoxelData& InVoxelData);
 	FVoxelData& Xor(const FVoxelData& InVoxelData);
 
-	FVoxelGrid& GetVoxelGrid() const;
+	FVoxelGrid& GetVoxelGrid();
+	const FVoxelGrid& GetVoxelGridConst() const;
+	
 	TArray<bool>& GetOccupancyData();
+	const TArray<bool>& GetOccupancyDataConst() const;
+
+	TArray<int32> GetOccupiedIndices() const;
 };

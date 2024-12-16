@@ -91,7 +91,9 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 		{
 			if(UPrimitiveComponent* PrimitiveComponent = OverlapResult.GetComponent(); PrimitiveComponent && PrimitiveComponent->IsNavigationRelevant())
 			{
-				const FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(PrimitiveComponent->GetNavigationBounds());
+				FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(PrimitiveComponent->GetNavigationBounds());
+				FVoxelData LocalVoxelData(LocalVoxelGrid);
+				
 				ProcessPrimitiveComponent(*PrimitiveComponent, LocalVoxelGrid);
 			}
 		}
@@ -104,7 +106,7 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 	if(InPrimitiveComponent.IsA(ULandscapeHeightfieldCollisionComponent::StaticClass()))
 	{
 		ULandscapeHeightfieldCollisionComponent* LandscapeComponent = Cast<ULandscapeHeightfieldCollisionComponent>(&InPrimitiveComponent);
-		ProcessLandscape(*LandscapeComponent, LocalVoxelGrid);
+		ProcessLandscape(*LandscapeComponent, InVoxelData);
 
 		return;
 	} 
@@ -115,29 +117,29 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 
 		for(const auto& BoxElem : AggGeom.BoxElems)
 		{
-			ProcessCollisionBox(BoxElem, LocalVoxelGrid, InPrimitiveComponent.GetNavigableGeometryTransform());
+			ProcessCollisionBox(BoxElem, InVoxelData, InPrimitiveComponent.GetNavigableGeometryTransform());
 		}
 		
 		for(const auto& SphereElem : AggGeom.SphereElems)
 		{
-			ProcessCollisionSphere(SphereElem, LocalVoxelGrid, InPrimitiveComponent.GetNavigableGeometryTransform());
+			ProcessCollisionSphere(SphereElem, InVoxelData, InPrimitiveComponent.GetNavigableGeometryTransform());
 		}
 
 		for(const auto& SphylElem : AggGeom.SphylElems)
 		{
-			ProcessCollisionCapsule(SphylElem, LocalVoxelGrid, InPrimitiveComponent.GetNavigableGeometryTransform());
+			ProcessCollisionCapsule(SphylElem, InVoxelData, InPrimitiveComponent.GetNavigableGeometryTransform());
 		}
 
 		for(const auto& ConvexElem : AggGeom.ConvexElems)
 		{
-			ProcessCollisionConvex(ConvexElem, LocalVoxelGrid, InPrimitiveComponent.GetNavigableGeometryTransform());
+			ProcessCollisionConvex(ConvexElem, InVoxelData, InPrimitiveComponent.GetNavigableGeometryTransform());
 		}
 	}
 }
 
 void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelData& InVoxelData) const
 {
-	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
+	const FIntVector LocalGridSize = InVoxelData.GetVoxelGridConst().GetVectorVoxelCount();
 
 	const FVoxelGrid LandscapeVoxelGrid(LandscapeComponent);
 	// DrawDebugBox(World, LandscapeVoxelGrid.GetBounds().GetCenter(), LandscapeVoxelGrid.GetBounds().GetExtent(), FColor::Purple, false, 5.0f);
@@ -211,6 +213,7 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelData& InVoxelData,
 	const FTransform& InstanceTransform) const
 {
+	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
 	// FByteBulkData BulkData;
@@ -235,6 +238,7 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelDa
 
 				if(VoxelBoundsProxy.IsInsideOrOn(BoxProxy) || VoxelBoundsProxy.Intersect(BoxProxy))
                 {
+					// TODO: Add the voxel to the voxel grid
                     bIntersects = true;
                 }
 				
@@ -252,6 +256,7 @@ void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, const
 	const FTransform& InstanceTransform) const
 {
 	// AABB test
+	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
 	const FVector SphereCenter = InstanceTransform.TransformPosition(SphereElement.Center);
@@ -289,6 +294,7 @@ void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, cons
 	const FTransform& InstanceTransform) const
 {
 	// AABB test
+	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
 	const FCapsuleProxy CapsuleProxy(CapsuleElement, InstanceTransform);
@@ -335,6 +341,7 @@ void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, const
 		});
 	}
 	
+	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 		
 	for(int32 Y = 0; Y < LocalGridSize.Y; Y++)
