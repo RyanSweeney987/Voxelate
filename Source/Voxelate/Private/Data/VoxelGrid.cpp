@@ -448,16 +448,26 @@ bool FVoxelGrid::operator!=(const FVoxelGrid& InVoxelGrid) const
  */
 FVoxelData::FVoxelData(const FVoxelGrid& InVoxelGrid) : VoxelGrid(InVoxelGrid)
 {
-	const int32 NumVoxels = VoxelGrid.GetVoxelCount();
-	OccupancyData.Init(false, NumVoxels);
+	FVoxelData::Init(InVoxelGrid);
 }
 
 /**
  * Copy constructor
  * @param InVoxelData The voxel data to copy
  */
-FVoxelData::FVoxelData(const FVoxelData& InVoxelData) : VoxelGrid(InVoxelData.VoxelGrid)
+FVoxelData::FVoxelData(const FVoxelData& InVoxelData) : OccupancyData(InVoxelData.OccupancyData), VoxelGrid(InVoxelData.VoxelGrid)
 {
+}
+
+void FVoxelData::Init(const FVoxelGrid& InVoxelGrid)
+{
+	const int32 NumVoxels = VoxelGrid.GetVoxelCount();
+	OccupancyData.Init(false, NumVoxels);
+}
+
+void FVoxelData::Init(const FVoxelData& InVoxelData)
+{
+	VoxelGrid = InVoxelData.VoxelGrid;
 	OccupancyData = InVoxelData.OccupancyData;
 }
 
@@ -547,7 +557,7 @@ void FVoxelData::SetOccupancy(const FVector& InLocation, const bool bOccupied)
 FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
 {
 	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() < InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data - input %d - expected %d"), InVoxelData.OccupancyData.Num(), OccupancyData.Num());
 
 	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
 	{
@@ -576,13 +586,13 @@ FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
 FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
 {
 	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() < InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data - input %d - expected %d"), InVoxelData.OccupancyData.Num(), OccupancyData.Num());
 
 	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
 	{
 		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
 		{
-			const int32 Index = i + VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
+			const int32 Index = VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
 
 			OccupancyData[Index] = OccupancyData[Index] || InVoxelData.OccupancyData[i];
 		}
@@ -605,15 +615,15 @@ FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
 FVoxelData& FVoxelData::Xor(const FVoxelData& InVoxelData)
 {
 	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() < InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data"));
+	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data - input %d - expected %d"), InVoxelData.OccupancyData.Num(), OccupancyData.Num());
 
 	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
 	{
 		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
 		{
-			const int32 Index = i + VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
+			const int32 Index = VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
 
-			OccupancyData[Index] = OccupancyData[Index] || InVoxelData.OccupancyData[i];
+			OccupancyData[Index] = OccupancyData[Index] ^ InVoxelData.OccupancyData[i];
 		}
 	} else
 	{

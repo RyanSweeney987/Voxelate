@@ -103,7 +103,7 @@ private:
  * It does not handle the actual grid itself, just the data
  */
 USTRUCT()
-struct FVoxelData
+struct VOXELATE_API FVoxelData
 {
 	GENERATED_BODY()
 
@@ -115,9 +115,15 @@ protected:
 	FVoxelGrid VoxelGrid;
 	
 public:
+	FVoxelData() = default;
 	FVoxelData(const FVoxelGrid& InVoxelGrid);
 	FVoxelData(const FVoxelData& InVoxelData);
 
+	virtual ~FVoxelData() = default;
+	
+	virtual void Init(const FVoxelGrid& InVoxelGrid);
+	virtual void Init(const FVoxelData& InVoxelData);
+	
 	bool GetOccupancy(const int32 InIndex) const;
 	bool GetOccupancy(const FIntVector& InVoxelCoordinate) const;
 	bool GetOccupancy(const FVector& InLocation) const;

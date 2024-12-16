@@ -54,28 +54,26 @@ struct VOXELATE_API FVoxelator
 
 	UPROPERTY()
 	bool bIsGeneratedWorld = false;
-public:
-	// UVoxelator();
-	// UVoxelator(UWorld* InWorld);
-	//
-	// ~UVoxelator();
 
+public:
+	FVoxelator() = default;
+	FVoxelator(UWorld* InWorld);
+
+	virtual ~FVoxelator() = default;
+	
 	void Init(UWorld* InWorld);
 	
 	void VoxelateActor(const AActor* InActor, FVoxelData& OutVoxelData) const;
 	void VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const;
 
 private:
-	void ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, const FVoxelData& InVoxelData) const;
+	void ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveComponent, FVoxelData& InVoxelData) const;
 
-	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, const FVoxelData& InVoxelData) const;
+	void ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, FVoxelData& InVoxelData) const;
 
 	// Process collision meshes
-	void ProcessCollisionBox(const FKBoxElem& BoxElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
-	void ProcessCollisionSphere(const FKSphereElem& SphereElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
-	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
-	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, const FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
-
-	// Process visual mesh
-	void ProcessConvex() const;
+	void ProcessCollisionBox(const FKBoxElem& BoxElement, FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+	void ProcessCollisionSphere(const FKSphereElem& SphereElement, FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+	void ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
+	void ProcessCollisionConvex(const FKConvexElem& ConvexElement, FVoxelData& InVoxelData, const FTransform& InstanceTransform) const;
 };
