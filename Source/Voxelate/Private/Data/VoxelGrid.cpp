@@ -419,7 +419,9 @@ TArray<FIntVector> FVoxelGrid::GetVoxelCoordinatesFromBounds(const FBox& InBound
  */
 FVoxelGrid FVoxelGrid::GetSubGrid(const FBox& InBounds) const
 {
-	return FVoxelGrid(*this, InBounds);
+	checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must be inside the grid bounds"));
+
+	return FVoxelGrid(*this, Bounds.Overlap(InBounds));
 }
 
 /**

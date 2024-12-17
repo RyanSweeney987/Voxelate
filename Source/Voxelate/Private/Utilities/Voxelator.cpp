@@ -67,8 +67,7 @@ void FVoxelator::VoxelateActor(const AActor* InActor, FVoxelData& OutVoxelData) 
 		}
 	}
 
-	const TArray<int32> Indices = OutVoxelData.GetOccupiedIndices();
-	for(const auto Index : Indices)
+	for(const auto Index : OutVoxelData.GetOccupiedIndices())
 	{
 		const FBox Bounds = InVoxelGrid.GetVoxelBounds(Index);
 		DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Green, false, 5.0f);
@@ -110,6 +109,12 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 				OutVoxelData.Or(LocalVoxelData);
 			}
 		}
+	}
+
+	for(const auto Index : OutVoxelData.GetOccupiedIndices())
+	{
+		const FBox Bounds = InVoxelGrid.GetVoxelBounds(Index);
+		DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Green, false, 5.0f);
 	}
 }
 
@@ -201,7 +206,7 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 			const FVector Start = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
 			const FVector StartWorldLocation = Start + Location;
 			
-			DrawDebugBox(World, StartWorldLocation, FVector(10, 10, 10), FColor::Cyan, false, 5.0f);
+			// DrawDebugBox(World, StartWorldLocation, FVector(10, 10, 10), FColor::Cyan, false, 5.0f);
 		}
 	}
 	
@@ -210,6 +215,8 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 		for(int32 X = 0; X < LandscapeVoxelGrid.GetVectorVoxelCount().X; X++)
 		{
 			FBox VoxelBounds = LandscapeVoxelGrid.GetVoxelBounds(FIntVector(X, Y, 0));
+
+			
 			// DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Blue, false, 5.0f);
 		}
 	}
@@ -254,21 +261,10 @@ void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, FVoxelData& In
 				const FBox VoxelBounds = LocalVoxelGrid.GetVoxelBounds(FIntVector(X, Y, Z));
 				const FOOBBoxProxy VoxelBoundsProxy(VoxelBounds, FTransform::Identity, false);
 				
-				// bool bIntersects = false;
-
 				if(VoxelBoundsProxy.IsInsideOrOn(BoxProxy) || VoxelBoundsProxy.Intersect(BoxProxy))
                 {
 					InVoxelData.SetOccupancy(Index, true);
-					
-					// TODO: Add the voxel to the voxel grid
-                    // bIntersects = true;
                 }
-				
-				// Update the span min and max if the box bounds intersect with the OOBB voxel bounds
-				// if (bIntersects)
-				// {
-				// 	DrawDebugBox(World, VoxelBoundsProxy.GetCenter(), VoxelBoundsProxy.GetExtent(), FColor::Green, false, 5.0f);
-				// }
 			}
 		}
 	}
@@ -301,20 +297,12 @@ void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, FVoxe
 					continue;
 				}
 				
-				// bool bIntersects = false;
-
 				const FBox VoxelBounds = LocalVoxelGrid.GetVoxelBounds(FIntVector(X, Y, Z));
 				
 				if(FMath::SphereAABBIntersection(SphereCenter, FMath::Square(SphereRadius), VoxelBounds))
 				{
 					InVoxelData.SetOccupancy(Index, true);
-					// bIntersects = true;
 				}
-
-				// if (bIntersects)
-				// {
-				// 	DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Green, false, 5.0f);
-				// }
 			}
 		}
 	}
@@ -341,21 +329,13 @@ void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, FVox
 				{
 					continue;
 				}
-				
-				// bool bIntersects = false;
 
 				const FBox VoxelBounds = LocalVoxelGrid.GetVoxelBounds(FIntVector(X, Y, Z));
 
 				if(CapsuleProxy.Intersects(VoxelBounds))
                 {
-					InVoxelData.SetOccupancy(Index, true);					
-                    // bIntersects = true;
+					InVoxelData.SetOccupancy(Index, true);	
                 }
-				
-				// if (bIntersects)
-				// {
-				// 	DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Green, false, 5.0f);
-				// }
 			}
 		}
 	}
@@ -396,9 +376,7 @@ void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, FVoxe
                 }
 				
 				const FBox VoxelBounds = LocalVoxelGrid.GetVoxelBounds(FIntVector(X, Y, Z));
-				
-				// bool bIntersects = false;
-				
+								
 				for(const auto& Triangle : Triangles)
 				{
 					if(Triangle.Intersects(VoxelBounds))
@@ -408,11 +386,6 @@ void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, FVoxe
                         break;
                     }
 				}
-
-				// if (bIntersects)
-				// {
-				// 	DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Green, false, 5.0f);
-				// }
 			}
 		}
 	}

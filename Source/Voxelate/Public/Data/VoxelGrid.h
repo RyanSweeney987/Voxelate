@@ -143,4 +143,5 @@ public:
 	const TArray<bool>& GetOccupancyDataConst() const;
 
 	TArray<int32> GetOccupiedIndices() const;
+	
 };
