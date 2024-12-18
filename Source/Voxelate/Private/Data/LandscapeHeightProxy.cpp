@@ -44,6 +44,10 @@ void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* 
 	
 	const FVector Size = Transform.GetScale3D();
 
+	HeightCellCount = FIntPoint(
+		InLandscapeComponent->CollisionSizeQuads + 1,
+		InLandscapeComponent->CollisionSizeQuads + 1);
+	
 	// Get landscape collision height data
 	const uint16* CollisionHeightData = (uint16*)InLandscapeComponent->CollisionHeightData.LockReadOnly();
 	const int64 ElementCount = InLandscapeComponent->CollisionHeightData.GetElementCount();
@@ -59,4 +63,50 @@ void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* 
 	}
 
 	InLandscapeComponent->CollisionHeightData.Unlock();
+}
+
+double FLandscapeHeightProxy::GetHeight(const int32 Index) const
+{
+	checkf(CollisionHeights.IsValidIndex(Index), TEXT("Index out of bounds"));
+	
+	return CollisionHeights[Index];
+}
+
+double FLandscapeHeightProxy::GetHeight(const FIntPoint& Coordinate) const
+{
+	checkf(IsCoordinateValid(Coordinate), TEXT("Coordinate is not valid"));
+	
+	return CollisionHeights[Coordinate.X + Coordinate.Y * HeightCellCount.X];	
+}
+
+double FLandscapeHeightProxy::GetMaxHeight(const FVector2d& InLocation) const
+{
+	checkf(IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
+
+	// TODO: Get the nearest 4 heights and get the max
+}
+
+double FLandscapeHeightProxy::GetMinHeight(const FVector2d& InLocation) const
+{
+	// TODO: Get the nearest 4 heights and get the min
+}
+
+double FLandscapeHeightProxy::GetMeanHeight(const FVector2d& InLocation) const
+{
+	// TODO: Get the nearest 4 heights and get the average
+}
+
+TArray<double> FLandscapeHeightProxy::GetHeights(const FVector2d& InLocation) const
+{
+	// TODO: Get the nearest 4 heights
+}
+
+TArray<double> FLandscapeHeightProxy::GetHeights(const FBox& InBounds) const
+{
+	// TODO: Get the heights for all the landscape heights in the bounds
+}
+
+FBox FLandscapeHeightProxy::GetBounds() const
+{
+	return HeightGrid.GetBounds();
 }

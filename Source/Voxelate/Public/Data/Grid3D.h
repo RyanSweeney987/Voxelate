@@ -26,14 +26,13 @@
 
 #include "CoreMinimal.h"
 #include "LandscapeProxy.h"
-#include "VoxelGrid.generated.h"
+#include "Grid3D.generated.h"
 
 /**
- * This struct handles the logic for working with a voxel grid
- * It does not handle the actual voxel data, just the grid itself - for now
+ * 3D grid of voxels
  */
 USTRUCT()
-struct VOXELATE_API FVoxelGrid
+struct VOXELATE_API FGrid3D
 {
 	GENERATED_BODY()
 
@@ -53,16 +52,16 @@ protected:
 	// UPROPERTY()
 	// FVoxelGrid* Parent;
 public:
-	FVoxelGrid() = default;
-	FVoxelGrid(const FVector& InVoxelSize, const FBox& InBounds);
-	FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
-	FVoxelGrid(const FVoxelGrid& InVoxelGrid, const FBox& InBounds);
+	FGrid3D() = default;
+	FGrid3D(const FVector& InVoxelSize, const FBox& InBounds);
+	FGrid3D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
+	FGrid3D(const FGrid3D& InVoxelGrid, const FBox& InBounds);
 
-	virtual ~FVoxelGrid() = default;
+	virtual ~FGrid3D() = default;
 	
 	virtual void Init(const FVector& InVoxelSize, const FBox& InBounds);
 	virtual void Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
-	virtual void Init(const FVoxelGrid& InVoxelGrid, const FBox& InBounds);
+	virtual void Init(const FGrid3D& InVoxelGrid, const FBox& InBounds);
 
 	FBox GetBounds() const;
 	int32 GetVoxelCount() const;
@@ -73,14 +72,14 @@ public:
 	bool IsVoxelCoordinateValid(const FIntVector& InCoordinate) const;
 	bool IsLocationInBounds(const FVector& InLocation) const;
 
-	bool IsGridInside(const FVoxelGrid& InVoxelGrid) const;
+	bool IsGridInside(const FGrid3D& InVoxelGrid) const;
 	
 	int32 GetVoxelIndex(const FVector& InLocation) const;
 	int32 GetVoxelIndex(const FIntVector& InCoordinate) const;
 	
 	FIntVector GetVoxelCoordinate(const FVector& InLocation) const;
 	FIntVector GetVoxelCoordinate(const int32 InIndex) const;
-	
+
 	FBox GetVoxelBounds(const int32 InIndex) const;
 	FBox GetVoxelBounds(const FIntVector& InCoordinate) const;
 	FBox GetVoxelBounds(const FVector& InLocation) const;
@@ -88,10 +87,10 @@ public:
 	TArray<int32> GetVoxelIndicesFromBounds(const FBox& InBounds) const;
 	TArray<FIntVector> GetVoxelCoordinatesFromBounds(const FBox& InBounds) const;
 	
-	FVoxelGrid GetSubGrid(const FBox& InBounds) const;
+	FGrid3D GetSubGrid(const FBox& InBounds) const;
 
-	bool operator==(const FVoxelGrid& InVoxelGrid) const;
-	bool operator!=(const FVoxelGrid& InVoxelGrid) const;
+	bool operator==(const FGrid3D& InVoxelGrid) const;
+	bool operator!=(const FGrid3D& InVoxelGrid) const;
 
 	
 private:
@@ -112,16 +111,16 @@ protected:
 	TArray<bool> OccupancyData;
 
 	UPROPERTY()
-	FVoxelGrid VoxelGrid;
+	FGrid3D VoxelGrid;
 	
 public:
 	FVoxelData() = default;
-	FVoxelData(const FVoxelGrid& InVoxelGrid);
+	FVoxelData(const FGrid3D& InVoxelGrid);
 	FVoxelData(const FVoxelData& InVoxelData);
 
 	virtual ~FVoxelData() = default;
 	
-	virtual void Init(const FVoxelGrid& InVoxelGrid);
+	virtual void Init(const FGrid3D& InVoxelGrid);
 	virtual void Init(const FVoxelData& InVoxelData);
 	
 	bool GetOccupancy(const int32 InIndex) const;
@@ -136,8 +135,8 @@ public:
 	FVoxelData& Or(const FVoxelData& InVoxelData);
 	FVoxelData& Xor(const FVoxelData& InVoxelData);
 
-	FVoxelGrid& GetVoxelGrid();
-	const FVoxelGrid& GetVoxelGridConst() const;
+	FGrid3D& GetVoxelGrid();
+	const FGrid3D& GetVoxelGridConst() const;
 	
 	TArray<bool>& GetOccupancyData();
 	const TArray<bool>& GetOccupancyDataConst() const;

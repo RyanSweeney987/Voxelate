@@ -23,7 +23,7 @@
  */
 
 
-#include "Data/VoxelGrid.h"
+#include "Data/Grid3D.h"
 
 #include "LandscapeInfo.h"
 #include "LandscapeProxy.h"
@@ -33,12 +33,12 @@
  * @param InVoxelSize The size of each voxel in world space
  * @param InBounds The bounds of the voxel grid in world space
  */
-FVoxelGrid::FVoxelGrid(const FVector& InVoxelSize, const FBox& InBounds)
+FGrid3D::FGrid3D(const FVector& InVoxelSize, const FBox& InBounds)
 {
-	FVoxelGrid::Init(InVoxelSize, InBounds);
+	FGrid3D::Init(InVoxelSize, InBounds);
 }
 
-FVoxelGrid::FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
+FGrid3D::FGrid3D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
 {
 	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
 	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
@@ -48,7 +48,7 @@ FVoxelGrid::FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscap
 		FMath::Sqrt(static_cast<double>(ComponentSize)),
 		1);
 
-	FVoxelGrid::Init(QuadSize, ComponentBounds);
+	FGrid3D::Init(QuadSize, ComponentBounds);
 }
 
 /**
@@ -56,11 +56,11 @@ FVoxelGrid::FVoxelGrid(const ULandscapeHeightfieldCollisionComponent& InLandscap
  * @param InVoxelGrid The voxel grid to copy
  * @param InBounds The bounds of the new voxel grid
  */
-FVoxelGrid::FVoxelGrid(const FVoxelGrid& InVoxelGrid, const FBox& InBounds)
+FGrid3D::FGrid3D(const FGrid3D& InVoxelGrid, const FBox& InBounds)
 {
 	checkf(InVoxelGrid.Bounds.IsInsideOrOn(InBounds), TEXT("New bounds must be inside the existing bounds"));
 
-	FVoxelGrid::Init(InVoxelGrid, InBounds);
+	FGrid3D::Init(InVoxelGrid, InBounds);
 }
 
 
@@ -69,7 +69,7 @@ FVoxelGrid::FVoxelGrid(const FVoxelGrid& InVoxelGrid, const FBox& InBounds)
  * @param InVoxelSize The size of each voxel in world space
  * @param InBounds The bounds of the voxel grid in world space
  */
-void FVoxelGrid::Init(const FVector& InVoxelSize, const FBox& InBounds)
+void FGrid3D::Init(const FVector& InVoxelSize, const FBox& InBounds)
 {
 	VoxelSize = InVoxelSize;
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
@@ -92,7 +92,7 @@ void FVoxelGrid::Init(const FVector& InVoxelSize, const FBox& InBounds)
 		FMath::CeilToInt(Bounds.GetSize().Z / VoxelSize.Z));
 }
 
-void FVoxelGrid::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
+void FGrid3D::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
 {
 	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
 	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
@@ -110,7 +110,7 @@ void FVoxelGrid::Init(const ULandscapeHeightfieldCollisionComponent& InLandscape
  * @param InVoxelGrid The voxel grid to copy
  * @param InBounds The bounds of the new voxel grid
  */
-void FVoxelGrid::Init(const FVoxelGrid& InVoxelGrid, const FBox& InBounds)
+void FGrid3D::Init(const FGrid3D& InVoxelGrid, const FBox& InBounds)
 {
 	checkf(InVoxelGrid.Bounds.IsInsideOrOn(InBounds), TEXT("New bounds must be inside the existing bounds"));
 
@@ -125,7 +125,7 @@ void FVoxelGrid::Init(const FVoxelGrid& InVoxelGrid, const FBox& InBounds)
  * Gets the bounds of the voxel grid
  * @return The bounds of the voxel grid
  */
-FBox FVoxelGrid::GetBounds() const
+FBox FGrid3D::GetBounds() const
 {
 	return Bounds;
 }
@@ -134,7 +134,7 @@ FBox FVoxelGrid::GetBounds() const
  * Gets the total number of voxels in the grid
  * @return The total number of voxels in the grid
  */
-int32 FVoxelGrid::GetVoxelCount() const
+int32 FGrid3D::GetVoxelCount() const
 {
 	return VoxelCount.X * VoxelCount.Y * VoxelCount.Z;
 }
@@ -143,7 +143,7 @@ int32 FVoxelGrid::GetVoxelCount() const
  * Gets the number of voxels in each dimension
  * @return The number of voxels in each dimension
  */
-FIntVector FVoxelGrid::GetVectorVoxelCount() const
+FIntVector FGrid3D::GetVectorVoxelCount() const
 {
 	return VoxelCount;
 }
@@ -152,7 +152,7 @@ FIntVector FVoxelGrid::GetVectorVoxelCount() const
  * Gets the offset of the grid
  * @return The offset of the grid
  */
-TOptional<FIntVector> FVoxelGrid::GetOffset() const
+TOptional<FIntVector> FGrid3D::GetOffset() const
 {
 	return Offset;
 }
@@ -162,7 +162,7 @@ TOptional<FIntVector> FVoxelGrid::GetOffset() const
  * @param InIndex The index to check
  * @return true if the index is valid, false otherwise
  */
-bool FVoxelGrid::IsVoxelIndexValid(const int32 InIndex) const
+bool FGrid3D::IsVoxelIndexValid(const int32 InIndex) const
 {
 	return InIndex >= 0 && InIndex < GetVoxelCount();
 }
@@ -172,7 +172,7 @@ bool FVoxelGrid::IsVoxelIndexValid(const int32 InIndex) const
  * @param InCoordinate The coordinate to check
  * @return true if the coordinate is valid, false otherwise
  */
-bool FVoxelGrid::IsVoxelCoordinateValid(const FIntVector& InCoordinate) const
+bool FGrid3D::IsVoxelCoordinateValid(const FIntVector& InCoordinate) const
 {
 	return InCoordinate.X >= 0 && InCoordinate.X < VoxelCount.X &&
 		InCoordinate.Y >= 0 && InCoordinate.Y < VoxelCount.Y &&
@@ -184,7 +184,7 @@ bool FVoxelGrid::IsVoxelCoordinateValid(const FIntVector& InCoordinate) const
  * @param InLocation The location to check
  * @return true if the location is within the bounds, false otherwise
  */
-bool FVoxelGrid::IsLocationInBounds(const FVector& InLocation) const
+bool FGrid3D::IsLocationInBounds(const FVector& InLocation) const
 {
 	return Bounds.IsInsideOrOn(InLocation);
 }
@@ -194,7 +194,7 @@ bool FVoxelGrid::IsLocationInBounds(const FVector& InLocation) const
  * @param InVoxelGrid The grid to check if it's inside this grid
  * @return true if the grid is inside this grid, false otherwise
  */
-bool FVoxelGrid::IsGridInside(const FVoxelGrid& InVoxelGrid) const
+bool FGrid3D::IsGridInside(const FGrid3D& InVoxelGrid) const
 {
 	return Bounds.IsInsideOrOn(InVoxelGrid.Bounds);
 }
@@ -205,7 +205,7 @@ bool FVoxelGrid::IsGridInside(const FVoxelGrid& InVoxelGrid) const
  * @param InLocation The location to get the index for
  * @return The index of the voxel at the location
  */
-int32 FVoxelGrid::GetVoxelIndex(const FVector& InLocation) const
+int32 FGrid3D::GetVoxelIndex(const FVector& InLocation) const
 {
 	checkf(IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
 	
@@ -228,7 +228,7 @@ int32 FVoxelGrid::GetVoxelIndex(const FVector& InLocation) const
  * @param InCoordinate The coordinate to get the index for
  * @return The index of the voxel at the coordinate
  */
-int32 FVoxelGrid::GetVoxelIndex(const FIntVector& InCoordinate) const
+int32 FGrid3D::GetVoxelIndex(const FIntVector& InCoordinate) const
 {
 	checkf(IsVoxelCoordinateValid(InCoordinate), TEXT("Invalid voxel coordinate %s"), *InCoordinate.ToString());
 	
@@ -244,7 +244,7 @@ int32 FVoxelGrid::GetVoxelIndex(const FIntVector& InCoordinate) const
  * @param InLocation The location to get the coordinate for
  * @return The coordinate of the voxel at the location
  */
-FIntVector FVoxelGrid::GetVoxelCoordinate(const FVector& InLocation) const
+FIntVector FGrid3D::GetVoxelCoordinate(const FVector& InLocation) const
 {
 	checkf(IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
 	
@@ -263,7 +263,7 @@ FIntVector FVoxelGrid::GetVoxelCoordinate(const FVector& InLocation) const
  * @param InIndex The index to get the coordinate for
  * @return The coordinate of the voxel at the index
  */
-FIntVector FVoxelGrid::GetVoxelCoordinate(const int32 InIndex) const
+FIntVector FGrid3D::GetVoxelCoordinate(const int32 InIndex) const
 {
 	checkf(IsVoxelIndexValid(InIndex), TEXT("Invalid voxel index %d"), InIndex);
 		
@@ -279,7 +279,7 @@ FIntVector FVoxelGrid::GetVoxelCoordinate(const int32 InIndex) const
  * @param InIndex The index of the voxel
  * @return The bounds of the voxel
  */
-FBox FVoxelGrid::GetVoxelBounds(const int32 InIndex) const
+FBox FGrid3D::GetVoxelBounds(const int32 InIndex) const
 {
 	checkf(IsVoxelIndexValid(InIndex), TEXT("Invalid voxel index %d"), InIndex);
 	
@@ -298,7 +298,7 @@ FBox FVoxelGrid::GetVoxelBounds(const int32 InIndex) const
  * @param InCoordinate The coordinate of the voxel
  * @return The bounds of the voxel
  */
-FBox FVoxelGrid::GetVoxelBounds(const FIntVector& InCoordinate) const
+FBox FGrid3D::GetVoxelBounds(const FIntVector& InCoordinate) const
 {
 	checkf(IsVoxelCoordinateValid(InCoordinate), TEXT("Invalid voxel coordinate %s"), *InCoordinate.ToString());
 
@@ -314,7 +314,7 @@ FBox FVoxelGrid::GetVoxelBounds(const FIntVector& InCoordinate) const
  * @param InLocation The location of the voxel
  * @return The bounds of the voxel
  */
-FBox FVoxelGrid::GetVoxelBounds(const FVector& InLocation) const
+FBox FGrid3D::GetVoxelBounds(const FVector& InLocation) const
 {
 	return GetVoxelBounds(GetVoxelIndex(InLocation));
 }
@@ -324,7 +324,7 @@ FBox FVoxelGrid::GetVoxelBounds(const FVector& InLocation) const
  * @param InBounds The bounds to get the voxel indices for
  * @return The indices of all voxels within the bounds
  */
-TArray<int32> FVoxelGrid::GetVoxelIndicesFromBounds(const FBox& InBounds) const
+TArray<int32> FGrid3D::GetVoxelIndicesFromBounds(const FBox& InBounds) const
 {
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
 	FVector BoundsMin = InBounds.Min;
@@ -372,7 +372,7 @@ TArray<int32> FVoxelGrid::GetVoxelIndicesFromBounds(const FBox& InBounds) const
  * @param InBounds The bounds to get the voxel coordinates for
  * @return The coordinates of all voxels within the bounds
  */
-TArray<FIntVector> FVoxelGrid::GetVoxelCoordinatesFromBounds(const FBox& InBounds) const
+TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) const
 {
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
 	FVector BoundsMin = InBounds.Min;
@@ -417,11 +417,11 @@ TArray<FIntVector> FVoxelGrid::GetVoxelCoordinatesFromBounds(const FBox& InBound
  * @param InBounds The bounds to get the sub grid for
  * @return The sub grid
  */
-FVoxelGrid FVoxelGrid::GetSubGrid(const FBox& InBounds) const
+FGrid3D FGrid3D::GetSubGrid(const FBox& InBounds) const
 {
 	checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must be inside the grid bounds"));
 
-	return FVoxelGrid(*this, Bounds.Overlap(InBounds));
+	return FGrid3D(*this, Bounds.Overlap(InBounds));
 }
 
 /**
@@ -429,7 +429,7 @@ FVoxelGrid FVoxelGrid::GetSubGrid(const FBox& InBounds) const
  * @param InVoxelGrid The voxel grid to compare with
  * @return true if the voxel grids are equal, false otherwise
  */
-bool FVoxelGrid::operator==(const FVoxelGrid& InVoxelGrid) const
+bool FGrid3D::operator==(const FGrid3D& InVoxelGrid) const
 {
 	return VoxelSize == InVoxelGrid.VoxelSize && Bounds == InVoxelGrid.Bounds;
 }
@@ -439,7 +439,7 @@ bool FVoxelGrid::operator==(const FVoxelGrid& InVoxelGrid) const
  * @param InVoxelGrid The voxel grid to compare with
  * @return true if the voxel grids are not equal, false otherwise
  */
-bool FVoxelGrid::operator!=(const FVoxelGrid& InVoxelGrid) const
+bool FGrid3D::operator!=(const FGrid3D& InVoxelGrid) const
 {
 	return !(*this == InVoxelGrid);
 }
@@ -448,7 +448,7 @@ bool FVoxelGrid::operator!=(const FVoxelGrid& InVoxelGrid) const
  * Struct constructor
  * @param InVoxelGrid The voxel grid that this data is associated with
  */
-FVoxelData::FVoxelData(const FVoxelGrid& InVoxelGrid) : VoxelGrid(InVoxelGrid)
+FVoxelData::FVoxelData(const FGrid3D& InVoxelGrid) : VoxelGrid(InVoxelGrid)
 {
 	FVoxelData::Init(InVoxelGrid);
 }
@@ -461,7 +461,7 @@ FVoxelData::FVoxelData(const FVoxelData& InVoxelData) : OccupancyData(InVoxelDat
 {
 }
 
-void FVoxelData::Init(const FVoxelGrid& InVoxelGrid)
+void FVoxelData::Init(const FGrid3D& InVoxelGrid)
 {
 	const int32 NumVoxels = VoxelGrid.GetVoxelCount();
 	OccupancyData.Init(false, NumVoxels);
@@ -642,7 +642,7 @@ FVoxelData& FVoxelData::Xor(const FVoxelData& InVoxelData)
  * Gets the voxel grid associated with this data
  * @return The voxel grid associated with this data
  */
-FVoxelGrid& FVoxelData::GetVoxelGrid()
+FGrid3D& FVoxelData::GetVoxelGrid()
 {
 	return VoxelGrid;
 }
@@ -651,7 +651,7 @@ FVoxelGrid& FVoxelData::GetVoxelGrid()
  * Gets the voxel grid associated with this data
  * @return The voxel grid associated with this data
  */
-const FVoxelGrid& FVoxelData::GetVoxelGridConst() const
+const FGrid3D& FVoxelData::GetVoxelGridConst() const
 {
 	return VoxelGrid;
 }

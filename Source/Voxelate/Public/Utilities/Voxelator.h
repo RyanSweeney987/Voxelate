@@ -30,7 +30,7 @@
 #include "Data/OOBBoxProxy.h"
 #include "Data/SphereProxy.h"
 #include "Data/TriangleProxy.h"
-#include "Data/VoxelGrid.h"
+#include "Data/Grid3D.h"
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "Voxelator.generated.h"

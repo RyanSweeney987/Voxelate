@@ -46,7 +46,7 @@ void FVoxelator::Init(UWorld* InWorld)
  */
 void FVoxelator::VoxelateActor(const AActor* InActor, FVoxelData& OutVoxelData) const
 {
-	const FVoxelGrid& InVoxelGrid = OutVoxelData.GetVoxelGrid();
+	const FGrid3D& InVoxelGrid = OutVoxelData.GetVoxelGrid();
 
 	// Get the primitive components of the actor - these may have collision geometry
 	TArray<UPrimitiveComponent*> PrimitiveComponents;
@@ -56,7 +56,7 @@ void FVoxelator::VoxelateActor(const AActor* InActor, FVoxelData& OutVoxelData) 
 	{
 		if(Component)
 		{
-			FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(Component->Bounds.GetBox());
+			FGrid3D LocalVoxelGrid = InVoxelGrid.GetSubGrid(Component->Bounds.GetBox());
 			FVoxelData LocalVoxelData(LocalVoxelGrid);
 
 			// Process the primitive component
@@ -83,7 +83,7 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 {
 	checkf(World, TEXT("World is null"));
 
-	const FVoxelGrid& InVoxelGrid = OutVoxelData.GetVoxelGrid();
+	const FGrid3D& InVoxelGrid = OutVoxelData.GetVoxelGrid();
 	
 	const FVector& BoxOrigin = InVoxelGrid.GetBounds().GetCenter();
 	const FVector& BoxExtent = InVoxelGrid.GetBounds().GetExtent();
@@ -99,7 +99,7 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 		{
 			if(UPrimitiveComponent* PrimitiveComponent = OverlapResult.GetComponent(); PrimitiveComponent && PrimitiveComponent->IsNavigationRelevant())
 			{
-				FVoxelGrid LocalVoxelGrid = InVoxelGrid.GetSubGrid(PrimitiveComponent->GetNavigationBounds());
+				FGrid3D LocalVoxelGrid = InVoxelGrid.GetSubGrid(PrimitiveComponent->GetNavigationBounds());
 				FVoxelData LocalVoxelData(LocalVoxelGrid);
 
 				// Process the primitive component
@@ -159,7 +159,7 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 {
 	const FIntVector LocalGridSize = InVoxelData.GetVoxelGridConst().GetVectorVoxelCount();
 
-	const FVoxelGrid LandscapeVoxelGrid(LandscapeComponent);
+	const FGrid3D LandscapeVoxelGrid(LandscapeComponent);
 	// DrawDebugBox(World, LandscapeVoxelGrid.GetBounds().GetCenter(), LandscapeVoxelGrid.GetBounds().GetExtent(), FColor::Purple, false, 5.0f);
 	
 	// https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-technical-guide-in-unreal-engine#calculatingheightmapzscale
@@ -233,7 +233,7 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 void FVoxelator::ProcessCollisionBox(const FKBoxElem& BoxElement, FVoxelData& InVoxelData,
 	const FTransform& InstanceTransform) const
 {
-	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
+	const FGrid3D& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
 	// FByteBulkData BulkData;
@@ -274,7 +274,7 @@ void FVoxelator::ProcessCollisionSphere(const FKSphereElem& SphereElement, FVoxe
 	const FTransform& InstanceTransform) const
 {
 	// AABB test
-	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
+	const FGrid3D& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
 	const FVector SphereCenter = InstanceTransform.TransformPosition(SphereElement.Center);
@@ -312,7 +312,7 @@ void FVoxelator::ProcessCollisionCapsule(const FKSphylElem& CapsuleElement, FVox
 	const FTransform& InstanceTransform) const
 {
 	// AABB test
-	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
+	const FGrid3D& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 
 	const FCapsuleProxy CapsuleProxy(CapsuleElement, InstanceTransform);
@@ -359,7 +359,7 @@ void FVoxelator::ProcessCollisionConvex(const FKConvexElem& ConvexElement, FVoxe
 		});
 	}
 	
-	const FVoxelGrid& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
+	const FGrid3D& LocalVoxelGrid = InVoxelData.GetVoxelGridConst();
 	const FIntVector LocalGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 		
 	for(int32 Y = 0; Y < LocalGridSize.Y; Y++)

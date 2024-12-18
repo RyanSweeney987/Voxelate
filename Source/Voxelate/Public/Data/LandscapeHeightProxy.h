@@ -25,6 +25,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Grid2D.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeProxy.generated.h"
 
@@ -41,13 +42,10 @@ protected:
 	FTransform Transform;
 
 	UPROPERTY()
-	FBox Bounds;
-	
-	UPROPERTY()
 	TArray<double> CollisionHeights;
 
 	UPROPERTY()
-	FIntPoint HeightCellCount;
+	FGrid2D HeightGrid;
 	
 public:
 	FLandscapeHeightProxy() = default;
@@ -55,6 +53,17 @@ public:
 
 	void Init(const ULandscapeHeightfieldCollisionComponent* InLandscapeComponent);
 
+	double GetHeight(const int32 Index) const;
+	double GetHeight(const FIntPoint& Coordinate) const;
+
+	double GetMaxHeight(const FVector2d& InLocation) const;
+	double GetMinHeight(const FVector2d& InLocation) const;
+	double GetMeanHeight(const FVector2d& InLocation) const;
+
+	TArray<double> GetHeights(const FVector2d& InLocation) const;
+	TArray<double> GetHeights(const FBox& InBounds) const;
+
+	FBox GetBounds() const;
 	// double GetExactHeight(const int32 InIndex) const;
 	// double GetExactHeight(const FIntPoint& InCoordinate) const;
 	// double GetExactHeight(const FVector2d& InLocation) const;
