@@ -27,10 +27,10 @@
 #include "CoreMinimal.h"
 #include "Grid2D.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
-#include "LandscapeProxy.generated.h"
+#include "LandscapeHeightProxy.generated.h"
 
 /**
- * 
+ * Proxy to make easier to get landscape heights
  */
 USTRUCT()
 struct VOXELATE_API FLandscapeHeightProxy
@@ -44,6 +44,7 @@ protected:
 	UPROPERTY()
 	TArray<double> CollisionHeights;
 
+	// Each height value is the center of a cell which means the edges can have overlapping cells
 	UPROPERTY()
 	FGrid2D HeightGrid;
 	
@@ -56,12 +57,13 @@ public:
 	double GetHeight(const int32 Index) const;
 	double GetHeight(const FIntPoint& Coordinate) const;
 
-	double GetMaxHeight(const FVector2d& InLocation) const;
-	double GetMinHeight(const FVector2d& InLocation) const;
-	double GetMeanHeight(const FVector2d& InLocation) const;
+	double GetMaxHeight(const FVector& InLocation) const;
+	double GetMinHeight(const FVector& InLocation) const;
+	double GetMeanHeight(const FVector& InLocation) const;
+	double GetInterpolatedHeight(const FVector& InLocation) const;
 
-	TArray<double> GetHeights(const FVector2d& InLocation) const;
-	TArray<double> GetHeights(const FBox& InBounds) const;
+	TArray<double> GetHeights(const FVector& InLocation) const;
+	TArray<double> GetHeights(const FBox& InBounds, FGrid2D& OutLocalGrid) const;
 
 	FBox GetBounds() const;
 	// double GetExactHeight(const int32 InIndex) const;
@@ -74,3 +76,5 @@ public:
 	
 	// FBox GetBounds() const;
 };
+
+

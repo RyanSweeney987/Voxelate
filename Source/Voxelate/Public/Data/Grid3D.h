@@ -72,7 +72,7 @@ public:
 	bool IsVoxelCoordinateValid(const FIntVector& InCoordinate) const;
 	bool IsLocationInBounds(const FVector& InLocation) const;
 
-	bool IsGridInside(const FGrid3D& InVoxelGrid) const;
+	bool IsInsideOrOn(const FGrid3D& InVoxelGrid) const;
 	
 	int32 GetVoxelIndex(const FVector& InLocation) const;
 	int32 GetVoxelIndex(const FIntVector& InCoordinate) const;
@@ -133,7 +133,6 @@ public:
 	
 	FVoxelData& And(const FVoxelData& InVoxelData);
 	FVoxelData& Or(const FVoxelData& InVoxelData);
-	FVoxelData& Xor(const FVoxelData& InVoxelData);
 
 	FGrid3D& GetVoxelGrid();
 	const FGrid3D& GetVoxelGridConst() const;
@@ -142,5 +141,4 @@ public:
 	const TArray<bool>& GetOccupancyDataConst() const;
 
 	TArray<int32> GetOccupiedIndices() const;
-	
 };

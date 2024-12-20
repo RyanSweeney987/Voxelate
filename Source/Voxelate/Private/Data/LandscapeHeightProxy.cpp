@@ -40,13 +40,13 @@ FLandscapeHeightProxy::FLandscapeHeightProxy(const ULandscapeHeightfieldCollisio
 void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* InLandscapeComponent)
 {
 	Transform = InLandscapeComponent->GetNavigableGeometryTransform();
-	Bounds = InLandscapeComponent->Bounds.GetBox();
+	// Bounds = InLandscapeComponent->Bounds.GetBox();
 	
 	const FVector Size = Transform.GetScale3D();
 
-	HeightCellCount = FIntPoint(
-		InLandscapeComponent->CollisionSizeQuads + 1,
-		InLandscapeComponent->CollisionSizeQuads + 1);
+	// HeightCellCount = FIntPoint(
+	// 	InLandscapeComponent->CollisionSizeQuads + 1,
+	// 	InLandscapeComponent->CollisionSizeQuads + 1);
 	
 	// Get landscape collision height data
 	const uint16* CollisionHeightData = (uint16*)InLandscapeComponent->CollisionHeightData.LockReadOnly();
@@ -74,36 +74,83 @@ double FLandscapeHeightProxy::GetHeight(const int32 Index) const
 
 double FLandscapeHeightProxy::GetHeight(const FIntPoint& Coordinate) const
 {
-	checkf(IsCoordinateValid(Coordinate), TEXT("Coordinate is not valid"));
+	// checkf(IsCoordinateValid(Coordinate), TEXT("Coordinate is not valid"));
+	//
+	// return CollisionHeights[Coordinate.X + Coordinate.Y * HeightCellCount.X];
 	
-	return CollisionHeights[Coordinate.X + Coordinate.Y * HeightCellCount.X];	
+	return 0;
 }
 
-double FLandscapeHeightProxy::GetMaxHeight(const FVector2d& InLocation) const
+/**
+ * @param InLocation The world space location to sample
+ * @return The largest of the 4 heights that surround the current position
+ */
+double FLandscapeHeightProxy::GetMaxHeight(const FVector& InLocation) const
 {
-	checkf(IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
+	// checkf(IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
 
 	// TODO: Get the nearest 4 heights and get the max
+
+	return 0;
 }
 
-double FLandscapeHeightProxy::GetMinHeight(const FVector2d& InLocation) const
+/**
+ * 
+ * @param InLocation The wrold space location to sample
+ * @return The smallest of the 4 heights that surround the current position
+ */
+double FLandscapeHeightProxy::GetMinHeight(const FVector& InLocation) const
 {
 	// TODO: Get the nearest 4 heights and get the min
+
+	return 0;
 }
 
-double FLandscapeHeightProxy::GetMeanHeight(const FVector2d& InLocation) const
+/**
+ * 
+ * @param InLocation The world space location
+ * @return The average of the 4 heights surrounding the current position
+ */
+double FLandscapeHeightProxy::GetMeanHeight(const FVector& InLocation) const
 {
 	// TODO: Get the nearest 4 heights and get the average
+
+	return 0;
 }
 
-TArray<double> FLandscapeHeightProxy::GetHeights(const FVector2d& InLocation) const
+/**
+ * 
+ * @param InLocation The world space location
+ * @return The interpolated height based on the input's relative distance from the 4 surrounding heights
+ */
+double FLandscapeHeightProxy::GetInterpolatedHeight(const FVector& InLocation) const
+{
+	// TODO: Get the nearest 4 and interpolate
+
+	return 0;
+}
+
+/**
+ * @param InLocation The world space location
+ * @return The 4 heights surrounding the input location
+ */
+TArray<double> FLandscapeHeightProxy::GetHeights(const FVector& InLocation) const
 {
 	// TODO: Get the nearest 4 heights
+
+	return TArray<double>();
 }
 
-TArray<double> FLandscapeHeightProxy::GetHeights(const FBox& InBounds) const
+/**
+ * @param InBounds The bounds to get the heights from
+ * @param OutLocalGrid The local grid that the data is for
+ * @return Returns all heights that exist within the input bounds
+ */
+TArray<double> FLandscapeHeightProxy::GetHeights(const FBox& InBounds, FGrid2D& OutLocalGrid) const
 {
 	// TODO: Get the heights for all the landscape heights in the bounds
+
+	return TArray<double>();
 }
 
 FBox FLandscapeHeightProxy::GetBounds() const

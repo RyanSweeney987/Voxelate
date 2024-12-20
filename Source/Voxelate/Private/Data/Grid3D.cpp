@@ -194,7 +194,7 @@ bool FGrid3D::IsLocationInBounds(const FVector& InLocation) const
  * @param InVoxelGrid The grid to check if it's inside this grid
  * @return true if the grid is inside this grid, false otherwise
  */
-bool FGrid3D::IsGridInside(const FGrid3D& InVoxelGrid) const
+bool FGrid3D::IsInsideOrOn(const FGrid3D& InVoxelGrid) const
 {
 	return Bounds.IsInsideOrOn(InVoxelGrid.Bounds);
 }
@@ -374,6 +374,8 @@ TArray<int32> FGrid3D::GetVoxelIndicesFromBounds(const FBox& InBounds) const
  */
 TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) const
 {
+	// TODO: clamp bounds to the grid bounds
+	
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
 	FVector BoundsMin = InBounds.Min;
 	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
@@ -558,7 +560,7 @@ void FVoxelData::SetOccupancy(const FVector& InLocation, const bool bOccupied)
  */
 FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
 {
-	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
+	checkf(VoxelGrid.IsInsideOrOn(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
 	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data - input %d - expected %d"), InVoxelData.OccupancyData.Num(), OccupancyData.Num());
 
 	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
@@ -587,7 +589,7 @@ FVoxelData& FVoxelData::And(const FVoxelData& InVoxelData)
  */
 FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
 {
-	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
+	checkf(VoxelGrid.IsInsideOrOn(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
 	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data - input %d - expected %d"), InVoxelData.OccupancyData.Num(), OccupancyData.Num());
 
 	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
@@ -606,35 +608,6 @@ FVoxelData& FVoxelData::Or(const FVoxelData& InVoxelData)
 		}
 	}
 
-	return *this;
-}
-
-/**
- * Performs a bitwise XOR operation on the voxel data
- * @param InVoxelData The voxel data to XOR with
- * @return The resulting voxel data
- */
-FVoxelData& FVoxelData::Xor(const FVoxelData& InVoxelData)
-{
-	checkf(VoxelGrid.IsGridInside(InVoxelData.VoxelGrid), TEXT("Input voxel grid out of bounds"));
-	checkf(OccupancyData.Num() >= InVoxelData.OccupancyData.Num(), TEXT("Too much input voxel data - input %d - expected %d"), InVoxelData.OccupancyData.Num(), OccupancyData.Num());
-
-	if(const TOptional<FIntVector> Offset = InVoxelData.GetVoxelGridConst().GetOffset(); Offset.IsSet())
-	{
-		for(int32 i = 0; i < InVoxelData.OccupancyData.Num(); i++)
-		{
-			const int32 Index = VoxelGrid.GetVoxelIndex(Offset.GetValue() + InVoxelData.VoxelGrid.GetVoxelCoordinate(i));
-
-			OccupancyData[Index] = OccupancyData[Index] ^ InVoxelData.OccupancyData[i];
-		}
-	} else
-	{
-		for(int32 i = 0; i < OccupancyData.Num(); i++)
-		{
-			OccupancyData[i] = OccupancyData[i] ^ InVoxelData.OccupancyData[i];
-		}
-	}
-	
 	return *this;
 }
 
