@@ -94,50 +94,12 @@ public:
 private:
 	bool IsInsideOrOnXY(const FBox& InBounds) const;
 	bool IsInsideOrOnXY(const FVector& InLocation) const;
+	bool IntersectXY(const FBox& InBounds) const;
+
+	FBox OverlapXY(const FBox& InBounds) const;
+
+	FBox CalculateGridBounds(const FVector& InCellSize, const FBox& InBounds) const;
+	FIntPoint CalculateGridCount(const FVector& InCellSize, const FVector& InBoundsSize) const;
 };
 
-/**
- * This struct handles the logic for working with voxel data
- * It does not handle the actual grid itself, just the data
- */
-USTRUCT()
-struct VOXELATE_API FCellData
-{
-	GENERATED_BODY()
 
-protected:
-	UPROPERTY()
-	TArray<bool> OccupancyData;
-
-	UPROPERTY()
-	FGrid2D CellGrid;
-	
-public:
-	FCellData() = default;
-	FCellData(const FGrid2D& InCellGrid);
-	FCellData(const FCellData& InCellData);
-
-	virtual ~FCellData() = default;
-	
-	virtual void Init(const FGrid2D& InCellGrid);
-	virtual void Init(const FCellData& InCellData);
-	
-	bool GetOccupancy(const int32 InIndex) const;
-	bool GetOccupancy(const FIntPoint& InCellCoordinate) const;
-	bool GetOccupancy(const FVector2d& InLocation) const;
-
-	void SetOccupancy(const int32 InIndex, const bool bOccupied);
-	void SetOccupancy(const FIntPoint& InCellCoordinate, const bool bOccupied);
-	void SetOccupancy(const FVector2d& InLocation, const bool bOccupied);
-	
-	FCellData& And(const FCellData& InCellData);
-	FCellData& Or(const FCellData& InCellData);
-
-	FGrid2D& GetCellGrid();
-	const FGrid2D& GetCellGridConst() const;
-	
-	TArray<bool>& GetOccupancyData();
-	const TArray<bool>& GetOccupancyDataConst() const;
-
-	TArray<int32> GetOccupiedIndices() const;
-};

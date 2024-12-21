@@ -72,7 +72,11 @@ public:
 	bool IsVoxelCoordinateValid(const FIntVector& InCoordinate) const;
 	bool IsLocationInBounds(const FVector& InLocation) const;
 
+	bool DoesOverlap(const FGrid3D& InVoxelGrid) const;
+	bool DoesOverlap(const FBox& InBounds) const;
+	
 	bool IsInsideOrOn(const FGrid3D& InVoxelGrid) const;
+	bool IsInsideOrOn(const FBox& InBounds) const;
 	
 	int32 GetVoxelIndex(const FVector& InLocation) const;
 	int32 GetVoxelIndex(const FIntVector& InCoordinate) const;
@@ -92,10 +96,13 @@ public:
 	bool operator==(const FGrid3D& InVoxelGrid) const;
 	bool operator!=(const FGrid3D& InVoxelGrid) const;
 
-	
 private:
-	
+	FBox CalculateGridBounds(const FVector& InVoxelSize, const FBox& InBounds) const;
+	FIntVector CalculateGridCount(const FVector& InVoxelSize, const FVector& InBoundsSize) const;
 };
+
+// TODO: Get voxel clamped bounds
+// TODO: Get voxel clamped bounds clamped by grid bounds
 
 /**
  * This struct handles the logic for working with voxel data
@@ -141,4 +148,10 @@ public:
 	const TArray<bool>& GetOccupancyDataConst() const;
 
 	TArray<int32> GetOccupiedIndices() const;
+
+	void FloodFill(const int32 InStartIndex, const bool bOccupied);
+	void FloodFill(const FIntVector& InStartCoordinate, const bool bOccupied);
+	void FloodFill(const FVector& InStartLocation, const bool bOccupied);
+
+	void Invert();
 };

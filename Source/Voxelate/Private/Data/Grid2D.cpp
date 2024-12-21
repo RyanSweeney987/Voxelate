@@ -31,15 +31,17 @@ FGrid2D::FGrid2D(const FVector& InCellSize, const FBox& InBounds)
 
 FGrid2D::FGrid2D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
 {
-	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
-	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
-	
-	const FVector QuadSize = ComponentBounds.GetSize() / FVector(
-		FMath::Sqrt(static_cast<double>(ComponentSize)),
-		FMath::Sqrt(static_cast<double>(ComponentSize)),
-		1);
+	// const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
+	// FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
+	//
+	// const FVector QuadSize = ComponentBounds.GetSize() / FVector(
+	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
+	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
+	// 	0.5);
+	//
+	// ComponentBounds = ComponentBounds.ExpandBy(QuadSize);
 
-	FGrid2D::Init(QuadSize, ComponentBounds);
+	FGrid2D::Init(InLandscapeComponent);
 }
 
 FGrid2D::FGrid2D(const FGrid2D& InCellGrid, const FBox& InBounds)
@@ -51,14 +53,59 @@ FGrid2D::FGrid2D(const FGrid2D& InCellGrid, const FBox& InBounds)
 
 void FGrid2D::Init(const FVector& InCellSize, const FBox& InBounds)
 {
+	CellSize = InCellSize;
+	CellSize.Z = 100.0;
+	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
+	// FVector BoundsMin = InBounds.Min;
+	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / CellSize.X) * CellSize.X;
+	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / CellSize.Y) * CellSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / CellSize.Z) * CellSize.Z;
+	//
+	// FVector BoundsMax = InBounds.Max;
+	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / CellSize.X) * CellSize.X;
+	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / CellSize.Y) * CellSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / CellSize.Z) * CellSize.Z;
+	//
+	// Bounds = FBox(BoundsMin, BoundsMax);
+
+	Bounds = CalculateGridBounds(InCellSize, InBounds);
+	
+	// Calculate the number of voxels in each dimension
+	// CellCount = FIntPoint(
+	// 	FMath::CeilToInt(Bounds.GetSize().X / CellSize.X),
+	// 	FMath::CeilToInt(Bounds.GetSize().Y / CellSize.Y));
+
+	CellCount = CalculateGridCount(InCellSize, Bounds.GetSize());
 }
 
 void FGrid2D::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
 {
+	// TODO: Make it so that the vertices are the centers of the cells
+	
+	Bounds = InLandscapeComponent.Bounds.GetBox();
+
+	CellSize = InLandscapeComponent.GetComponentTransform().GetScale3D();
+
+	CellCount = FIntPoint(Bounds.GetSize().X / CellSize.X, Bounds.GetSize().Y / CellSize.Y);
+	
+	// const FVector QuadSize = ComponentBounds.GetSize() / FVector(
+	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
+	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
+	// 	0.5);
+	//
+	// CellSize = QuadSize;
+	// CellSize.Z = 100.0;
 }
 
 void FGrid2D::Init(const FGrid2D& InCellGrid, const FBox& InBounds)
 {
+	checkf(InCellGrid.Bounds.IsInsideOrOn(InBounds), TEXT("New bounds must be inside the existing bounds"));
+
+	// Initialise this grid
+	Init(InCellGrid.CellSize, InBounds);
+
+	// Calculate the offset of the new grid
+	Offset = InCellGrid.GetCellCoordinate(InBounds.Min);
 }
 
 FBox FGrid2D::GetBounds() const
@@ -158,27 +205,115 @@ FBox FGrid2D::GetCellBounds(const int32 InIndex) const
 
 FBox FGrid2D::GetCellBounds(const FIntPoint& InCoordinate) const
 {
-	return FBox();
+	checkf(IsCellCoordinateValid(InCoordinate), TEXT("Invalid cell coordinate %s"), *InCoordinate.ToString());
+
+	const FVector Min = Bounds.Min + FVector(InCoordinate.X * CellSize.X, InCoordinate.Y * CellSize.Y, Bounds.Min.Z);
+	const FVector Max = Min + CellSize;
+
+	return FBox(Min, Max);
 }
 
 FBox FGrid2D::GetCellBounds(const FVector& InLocation) const
 {
-	return FBox();
+	return GetCellBounds(GetCellIndex(InLocation));
 }
 
 TArray<int32> FGrid2D::GetCellIndicesFromBounds(const FBox& InBounds) const
 {
-	return TArray<int32>();
+	// TODO: check and clamp bounds
+
+	const FBox& ClampedBounds = Bounds.Overlap(InBounds);
+
+	checkf(ClampedBounds.GetVolume() > 0, TEXT("Bounds must intersect or be contained within the grid"));
+	
+	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
+	// FVector BoundsMin = InBounds.Min;
+	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / CellSize.X) * CellSize.X;
+	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / CellSize.Y) * CellSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / CellSize.Z) * CellSize.Z;
+	//
+	// FVector BoundsMax = InBounds.Max;
+	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / CellSize.X) * CellSize.X;
+	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / CellSize.Y) * CellSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / CellSize.Z) * CellSize.Z;
+	//
+	// const FVector BoundsSize = BoundsMax - BoundsMin;
+	//
+	// const int32 NumCellsX = FMath::CeilToInt(BoundsSize.X / CellSize.X);
+	// const int32 NumCellsY = FMath::CeilToInt(BoundsSize.Y / CellSize.Y);
+	// const int32 NumCells = NumCellsX * NumCellsY;
+
+	const FBox GridBounds = CalculateGridBounds(CellSize, ClampedBounds);
+	const FIntPoint Count = CalculateGridCount(CellSize, GridBounds.GetSize());
+	
+	TArray<int32> Result;
+	Result.Reserve(Count.X * Count.Y);
+	
+	const int32 IndexMin = GetCellIndex(GridBounds.Min);
+	
+	for(int32 Y = 0; Y < Count.Y; Y++)
+	{
+		for(int32 X = 0; X < Count.X; X++)
+		{
+			const int32 Index = IndexMin + X + (Y * CellCount.X);
+			
+			checkf(IsCellIndexValid(Index), TEXT("Invalid cell index %d"), Index);
+			
+			Result.Add(Index);
+		}
+	}
+		
+	return Result;
 }
 
 TArray<FIntPoint> FGrid2D::GetCellCoordinatesFromBounds(const FBox& InBounds) const
 {
-	return TArray<FIntPoint>();
+	// TODO: check and clamp bounds
+	
+	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
+	// FVector BoundsMin = InBounds.Min;
+	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / CellSize.X) * CellSize.X;
+	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / CellSize.Y) * CellSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / CellSize.Z) * CellSize.Z;
+	//
+	// FVector BoundsMax = InBounds.Max;
+	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / CellSize.X) * CellSize.X;
+	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / CellSize.Y) * CellSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / CellSize.Z) * CellSize.Z;
+	//
+	// const FVector BoundsSize = BoundsMax - BoundsMin;
+	
+	// const int32 NumCellsX = FMath::CeilToInt(BoundsSize.X / CellSize.X);
+	// const int32 NumCellsY = FMath::CeilToInt(BoundsSize.Y / CellSize.Y);
+	// const int32 NumCells = NumCellsX * NumCellsY;
+
+	const FBox GridBounds = CalculateGridBounds(CellSize, InBounds);
+	const FIntPoint Count = CalculateGridCount(CellSize, GridBounds.GetSize());
+	
+	TArray<FIntPoint> Result;
+	Result.Reserve(Count.X * Count.Y);
+	
+	const FIntPoint CoordinateMin = GetCellCoordinate(GridBounds.Min);
+	
+	for(int32 Y = 0; Y < Count.Y; Y++)
+	{
+		for(int32 X = 0; X < Count.X; X++)
+		{
+			Result.Add(CoordinateMin + FIntPoint(X, Y));
+		}
+	}
+		
+	return Result;
 }
 
 FGrid2D FGrid2D::GetSubGrid(const FBox& InBounds) const
 {
-	return FGrid2D();
+	const FBox& Overlap = OverlapXY(InBounds);
+	// Make sure that the bounds intersect or are completely inside the grid bounds
+	checkf(Overlap.GetVolume() > 0, TEXT("Bounds must overlap or be inside the grid bounds"));
+	// checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must be inside the grid bounds"));
+
+	return FGrid2D(*this, Overlap);
 }
 
 bool FGrid2D::operator==(const FGrid2D& InCellGrid) const
@@ -201,109 +336,70 @@ bool FGrid2D::IsInsideOrOnXY(const FVector& InLocation) const
 	return Bounds.IsInsideOrOnXY(InLocation);
 }
 
-FCellData::FCellData(const FGrid2D& InCellGrid)
+bool FGrid2D::IntersectXY(const FBox& InBounds) const
 {
-}
-
-FCellData::FCellData(const FCellData& InCellData)
-{
-}
-
-void FCellData::Init(const FGrid2D& InCellGrid)
-{
-}
-
-void FCellData::Init(const FCellData& InCellData)
-{
-}
-
-bool FCellData::GetOccupancy(const int32 InIndex) const
-{
-    checkf(OccupancyData.IsValidIndex(InIndex), TEXT("Invalid cell index %d"), InIndex);
-
-	return OccupancyData[InIndex];
-}
-
-bool FCellData::GetOccupancy(const FIntPoint& InCellCoordinate) const
-{
-	checkf(CellGrid.IsCellCoordinateValid(InCellCoordinate), TEXT("Invalid coordinate %s"), *InCellCoordinate.ToString());
-
-	return OccupancyData[CellGrid.GetCellIndex(InCellCoordinate)];
-}
-
-bool FCellData::GetOccupancy(const FVector2d& InLocation) const
-{
-	return false;
-	// checkf(CellGrid.IsLocationInBounds(InLocation), TEXT("Invalid location %d"), InLocation);
-	//
-	// return Data[CellGrid.GetCellIndex(InLocation)];
-}
-
-void FCellData::SetOccupancy(const int32 InIndex, const bool bOccupied)
-{
-	checkf(OccupancyData.IsValidIndex(InIndex), TEXT("Invalid cell index %d"), InIndex);
-
-	OccupancyData[InIndex] = bOccupied;
-}
-
-void FCellData::SetOccupancy(const FIntPoint& InCellCoordinate, const bool bOccupied)
-{
-	checkf(CellGrid.IsCellCoordinateValid(InCellCoordinate), TEXT("Invalid coordinate %s"), *InCellCoordinate.ToString());
-
-	OccupancyData[CellGrid.GetCellIndex(InCellCoordinate)] = bOccupied;
-}
-
-void FCellData::SetOccupancy(const FVector2d& InLocation, const bool bOccupied)
-{
-	// checkf(CellGrid.IsLocationInBounds(InLocation), TEXT("Invalid location %d"), InLocation);
-	//
-	// Data[CellGrid.GetCellIndex(InLocation)] = bOccupied;
-}
-
-FCellData& FCellData::And(const FCellData& InCellData)
-{
-	return *this;
-}
-
-FCellData& FCellData::Or(const FCellData& InCellData)
-{
-	return *this;
-}
-
-FGrid2D& FCellData::GetCellGrid()
-{
-	return CellGrid;
-}
-
-const FGrid2D& FCellData::GetCellGridConst() const
-{
-	return CellGrid;
-}
-
-TArray<bool>& FCellData::GetOccupancyData()
-{
-	return OccupancyData;
-}
-
-const TArray<bool>& FCellData::GetOccupancyDataConst() const
-{
-	return OccupancyData;
-}
-
-TArray<int32> FCellData::GetOccupiedIndices() const
-{
-	TArray<int32> Result;
-	Result.Reserve(OccupancyData.Num());
-
-	for(int32 i = 0; i < OccupancyData.Num(); i++)
+	const FVector Min = Bounds.Min;
+	const FVector Max = Bounds.Max;
+	
+	if ((Min.X > InBounds.Max.X) || (InBounds.Min.X > Max.X))
 	{
-		if(OccupancyData[i])
-		{
-			Result.Add(i);
-		}
+		return false;
 	}
 
-	Result.Shrink();
+	if ((Min.Y > InBounds.Max.Y) || (InBounds.Min.Y > Max.Y))
+	{
+		return false;
+	}
 
-	return Result;
+	return true;
+}
+
+FBox FGrid2D::OverlapXY(const FBox& InBounds) const
+{
+	if (IntersectXY(InBounds) == false)
+	{
+		return FBox();
+	}
+
+	const FVector Min = Bounds.Min;
+	const FVector Max = Bounds.Max;
+	
+	// otherwise they overlap
+	// so find overlapping box
+	FVector MinVector, MaxVector;
+
+	MinVector.X = FMath::Max(Min.X, InBounds.Min.X);
+	MaxVector.X = FMath::Min(Max.X, InBounds.Max.X);
+
+	MinVector.Y = FMath::Max(Min.Y, InBounds.Min.Y);
+	MaxVector.Y = FMath::Min(Max.Y, InBounds.Max.Y);
+
+	MinVector.Z = Min.Z;
+	MaxVector.Z = Max.Z;
+
+	return FBox(MinVector, MaxVector);
+}
+
+FBox FGrid2D::CalculateGridBounds(const FVector& InCellSize, const FBox& InBounds) const
+{
+	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
+	FVector BoundsMin = InBounds.Min;
+	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / InCellSize.X) * InCellSize.X;
+	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / InCellSize.Y) * InCellSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / InCellSize.Z) * InCellSize.Z;
+	
+	FVector BoundsMax = InBounds.Max;
+	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / InCellSize.X) * InCellSize.X;
+	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / InCellSize.Y) * InCellSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / InCellSize.Z) * InCellSize.Z;
+	
+	return FBox(BoundsMin, BoundsMax);
+}
+
+FIntPoint FGrid2D::CalculateGridCount(const FVector& InCellSize, const FVector& InBoundsSize) const
+{
+	const int32 NumCellsX = FMath::CeilToInt(InBoundsSize.X / InCellSize.X);
+	const int32 NumCellsY = FMath::CeilToInt(InBoundsSize.Y / InCellSize.Y);
+
+	return FIntPoint(NumCellsX, NumCellsY);
 }

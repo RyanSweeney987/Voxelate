@@ -40,15 +40,7 @@ FGrid3D::FGrid3D(const FVector& InVoxelSize, const FBox& InBounds)
 
 FGrid3D::FGrid3D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
 {
-	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
-	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
-	
-	const FVector QuadSize = ComponentBounds.GetSize() / FVector(
-		FMath::Sqrt(static_cast<double>(ComponentSize)),
-		FMath::Sqrt(static_cast<double>(ComponentSize)),
-		1);
-
-	FGrid3D::Init(QuadSize, ComponentBounds);
+	FGrid3D::Init(InLandscapeComponent);
 }
 
 /**
@@ -58,8 +50,6 @@ FGrid3D::FGrid3D(const ULandscapeHeightfieldCollisionComponent& InLandscapeCompo
  */
 FGrid3D::FGrid3D(const FGrid3D& InVoxelGrid, const FBox& InBounds)
 {
-	checkf(InVoxelGrid.Bounds.IsInsideOrOn(InBounds), TEXT("New bounds must be inside the existing bounds"));
-
 	FGrid3D::Init(InVoxelGrid, InBounds);
 }
 
@@ -71,29 +61,39 @@ FGrid3D::FGrid3D(const FGrid3D& InVoxelGrid, const FBox& InBounds)
  */
 void FGrid3D::Init(const FVector& InVoxelSize, const FBox& InBounds)
 {
+	checkf(InVoxelSize.X > 0 && InVoxelSize.Y > 0 && InVoxelSize.Z > 0, TEXT("Voxel size must be greater than 0"));
+	checkf(InBounds.IsValid, TEXT("Bounds are invalid"));
+	
 	VoxelSize = InVoxelSize;
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	FVector BoundsMin = InBounds.Min;
-	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
-	
-	FVector BoundsMax = InBounds.Max;
-	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
-	
-	Bounds = FBox(BoundsMin, BoundsMax);
+	// FVector BoundsMin = InBounds.Min;
+	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
+	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
+	//
+	// FVector BoundsMax = InBounds.Max;
+	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
+	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
+	//
+	// Bounds = FBox(BoundsMin, BoundsMax);
 
+	Bounds = CalculateGridBounds(InVoxelSize, InBounds);
+	
 	// Calculate the number of voxels in each dimension
-	VoxelCount = FIntVector(
-		FMath::CeilToInt(Bounds.GetSize().X / VoxelSize.X),
-		FMath::CeilToInt(Bounds.GetSize().Y / VoxelSize.Y),
-		FMath::CeilToInt(Bounds.GetSize().Z / VoxelSize.Z));
+	// VoxelCount = FIntVector(
+	// 	FMath::CeilToInt(Bounds.GetSize().X / VoxelSize.X),
+	// 	FMath::CeilToInt(Bounds.GetSize().Y / VoxelSize.Y),
+	// 	FMath::CeilToInt(Bounds.GetSize().Z / VoxelSize.Z));
+
+	VoxelCount = CalculateGridCount(InVoxelSize, Bounds.GetSize());
 }
 
 void FGrid3D::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
 {
+	checkf(InLandscapeComponent.CollisionHeightData.GetElementCount() > 0, TEXT("Collision height data is empty"));
+	checkf(InLandscapeComponent.Bounds.GetBox().IsValid, TEXT("Component bounds are invalid"));
+	
 	const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
 	const FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
 	
@@ -190,14 +190,54 @@ bool FGrid3D::IsLocationInBounds(const FVector& InLocation) const
 }
 
 /**
- * Checks if the grid is inside this grid
- * @param InVoxelGrid The grid to check if it's inside this grid
- * @return true if the grid is inside this grid, false otherwise
+ * Checks if the grid overlaps with another grid
+ * @param InVoxelGrid The grid to check if it overlaps with
+ * @return true if the grids overlap, false otherwise
+ */
+bool FGrid3D::DoesOverlap(const FGrid3D& InVoxelGrid) const
+{
+	return DoesOverlap(InVoxelGrid.Bounds);
+}
+
+/**
+ * Checks if the grid overlaps with a bounds
+ * @param InBounds The bounds to check if it overlaps with
+ * @return true if the grid overlaps with the bounds, false otherwise
+ */
+bool FGrid3D::DoesOverlap(const FBox& InBounds) const
+{
+	return Bounds.Overlap(InBounds).GetVolume() > 0.0;
+}
+
+/**
+ * Checks if the grid is inside or on another grid
+ * @param InVoxelGrid The grid to check if this grid is inside or on
+ * @return true if the grid is inside or on the other grid, false otherwise
  */
 bool FGrid3D::IsInsideOrOn(const FGrid3D& InVoxelGrid) const
 {
 	return Bounds.IsInsideOrOn(InVoxelGrid.Bounds);
 }
+
+/**
+ * Checks if the bounds are inside or on the grid
+ * @param InBounds The bounds to check if they are inside or on the grid
+ * @return true if the bounds are inside or on the grid, false otherwise
+ */
+bool FGrid3D::IsInsideOrOn(const FBox& InBounds) const
+{
+	return Bounds.IsInsideOrOn(InBounds);
+}
+
+/**
+ * Checks if the grid is inside this grid
+ * @param InVoxelGrid The grid to check if it's inside this grid
+ * @return true if the grid is inside this grid, false otherwise
+ */
+// bool FGrid3D::IsInsideOrOn(const FGrid3D& InVoxelGrid) const
+// {
+// 	return Bounds.IsInsideOrOn(InVoxelGrid.Bounds);
+// }
 
 /**
  * Gets the voxel index for a location
@@ -316,6 +356,8 @@ FBox FGrid3D::GetVoxelBounds(const FIntVector& InCoordinate) const
  */
 FBox FGrid3D::GetVoxelBounds(const FVector& InLocation) const
 {
+	checkf(IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
+	
 	return GetVoxelBounds(GetVoxelIndex(InLocation));
 }
 
@@ -326,34 +368,45 @@ FBox FGrid3D::GetVoxelBounds(const FVector& InLocation) const
  */
 TArray<int32> FGrid3D::GetVoxelIndicesFromBounds(const FBox& InBounds) const
 {
+	// TODO: check and clamp bounds
+
+	const FBox& ClampedBounds = Bounds.Overlap(InBounds);
+
+	checkf(ClampedBounds.GetVolume() > 0, TEXT("Bounds must intersect or be contained within the grid"));
+
+	
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	FVector BoundsMin = InBounds.Min;
-	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
+	// FVector BoundsMin = InBounds.Min;
+	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
+	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
+	//
+	// FVector BoundsMax = InBounds.Max;
+	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
+	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
+
+	const FBox& GridBounds = CalculateGridBounds(VoxelSize, ClampedBounds);
+	const FIntVector Count = CalculateGridCount(VoxelSize, GridBounds.GetSize());
 	
-	FVector BoundsMax = InBounds.Max;
-	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
+	// const FVector BoundsSize = BoundsMax - BoundsMin;
+
 	
-	const FVector BoundsSize = BoundsMax - BoundsMin;
-	
-	const int32 NumVoxelsX = FMath::CeilToInt(BoundsSize.X / VoxelSize.X);
-	const int32 NumVoxelsY = FMath::CeilToInt(BoundsSize.Y / VoxelSize.Y);
-	const int32 NumVoxelsZ = FMath::CeilToInt(BoundsSize.Z / VoxelSize.Z);
-	const int32 NumVoxels = NumVoxelsX * NumVoxelsY * NumVoxelsZ;
+	// const int32 NumVoxelsX = FMath::CeilToInt(BoundsSize.X / VoxelSize.X);
+	// const int32 NumVoxelsY = FMath::CeilToInt(BoundsSize.Y / VoxelSize.Y);
+	// const int32 NumVoxelsZ = FMath::CeilToInt(BoundsSize.Z / VoxelSize.Z);
+	// const int32 NumVoxels = NumVoxelsX * NumVoxelsY * NumVoxelsZ;
 	
 	TArray<int32> Result;
-	Result.Reserve(NumVoxels);
+	Result.Reserve(Count.X * Count.Y * Count.Z);
 	
-	const int32 IndexMin = GetVoxelIndex(BoundsMin);
+	const int32 IndexMin = GetVoxelIndex(GridBounds.Min);
 	
-	for(int32 Z = 0; Z < NumVoxelsZ; Z++)
+	for(int32 Z = 0; Z < Count.Z; Z++)
 	{
-		for(int32 Y = 0; Y < NumVoxelsY; Y++)
+		for(int32 Y = 0; Y < Count.Y; Y++)
 		{
-			for(int32 X = 0; X < NumVoxelsX; X++)
+			for(int32 X = 0; X < Count.X; X++)
 			{
 				const int32 Index = IndexMin + X + Y * VoxelCount.X + Z * VoxelCount.X * VoxelCount.Y;
 			
@@ -374,36 +427,40 @@ TArray<int32> FGrid3D::GetVoxelIndicesFromBounds(const FBox& InBounds) const
  */
 TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) const
 {
-	// TODO: clamp bounds to the grid bounds
+	// TODO: check and clamp bounds
 	
 	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	FVector BoundsMin = InBounds.Min;
-	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
+	// FVector BoundsMin = InBounds.Min;
+	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
+	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
+	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
+	//
+	// FVector BoundsMax = InBounds.Max;
+	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
+	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
+	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
+	//
+	// const FVector BoundsSize = BoundsMax - BoundsMin;
+
+	const FBox& GridBounds = CalculateGridBounds(VoxelSize, InBounds);
+	const FIntVector Count = CalculateGridCount(VoxelSize, GridBounds.GetSize());
+
 	
-	FVector BoundsMax = InBounds.Max;
-	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
-	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
-	BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
-	
-	const FVector BoundsSize = BoundsMax - BoundsMin;
-	
-	const int32 NumVoxelsX = FMath::CeilToInt(BoundsSize.X / VoxelSize.X);
-	const int32 NumVoxelsY = FMath::CeilToInt(BoundsSize.Y / VoxelSize.Y);
-	const int32 NumVoxelsZ = FMath::CeilToInt(BoundsSize.Z / VoxelSize.Z);
-	const int32 NumVoxels = NumVoxelsX * NumVoxelsY * NumVoxelsZ;
+	// const int32 NumVoxelsX = FMath::CeilToInt(BoundsSize.X / VoxelSize.X);
+	// const int32 NumVoxelsY = FMath::CeilToInt(BoundsSize.Y / VoxelSize.Y);
+	// const int32 NumVoxelsZ = FMath::CeilToInt(BoundsSize.Z / VoxelSize.Z);
+	// const int32 NumVoxels = NumVoxelsX * NumVoxelsY * NumVoxelsZ;
 	
 	TArray<FIntVector> Result;
-	Result.Reserve(NumVoxels);
+	Result.Reserve(Count.X * Count.Y * Count.Z);
 	
-	const FIntVector CoordinateMin = GetVoxelCoordinate(BoundsMin);
+	const FIntVector CoordinateMin = GetVoxelCoordinate(GridBounds.Min);
 	
-	for(int32 Z = 0; Z < NumVoxelsZ; Z++)
+	for(int32 Z = 0; Z < Count.Z; Z++)
 	{
-		for(int32 Y = 0; Y < NumVoxelsY; Y++)
+		for(int32 Y = 0; Y < Count.Y; Y++)
 		{
-			for(int32 X = 0; X < NumVoxelsX; X++)
+			for(int32 X = 0; X < Count.X; X++)
 			{
 				Result.Add(CoordinateMin + FIntVector(X, Y, Z));
 			}
@@ -421,9 +478,12 @@ TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) 
  */
 FGrid3D FGrid3D::GetSubGrid(const FBox& InBounds) const
 {
-	checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must be inside the grid bounds"));
+	const FBox& Overlap = Bounds.Overlap(InBounds);
+	// Make sure that the bounds intersect or are completely inside the grid bounds
+	checkf(Overlap.GetVolume() > 0, TEXT("Bounds must overlap or be inside the grid bounds"));
+	// checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must overlap or be inside the grid bounds"));
 
-	return FGrid3D(*this, Bounds.Overlap(InBounds));
+	return FGrid3D(*this, Overlap);
 }
 
 /**
@@ -444,6 +504,42 @@ bool FGrid3D::operator==(const FGrid3D& InVoxelGrid) const
 bool FGrid3D::operator!=(const FGrid3D& InVoxelGrid) const
 {
 	return !(*this == InVoxelGrid);
+}
+
+/**
+ * Calculates the bounds of the grid based on the voxel size and input bounds
+ * @param InVoxelSize The size of each voxel in world space
+ * @param InBounds The bounds of the voxel grid in world space
+ * @return The bounds of the grid
+ */
+FBox FGrid3D::CalculateGridBounds(const FVector& InVoxelSize, const FBox& InBounds) const
+{
+	FVector BoundsMin = InBounds.Min;
+	BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / InVoxelSize.X) * InVoxelSize.X;
+	BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / InVoxelSize.Y) * InVoxelSize.Y;
+	BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / InVoxelSize.Z) * InVoxelSize.Z;
+	
+	FVector BoundsMax = InBounds.Max;
+	BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / InVoxelSize.X) * InVoxelSize.X;
+	BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / InVoxelSize.Y) * InVoxelSize.Y;
+	BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / InVoxelSize.Z) * InVoxelSize.Z;
+
+	return FBox(BoundsMin, BoundsMax);
+}
+
+/**
+ * Calculates the number of voxels in each dimension based on the voxel size and bounds
+ * @param InVoxelSize The size of each voxel in world space
+ * @param InBoundsSize The size of the bounds in world space
+ * @return The number of voxels in each dimension
+ */
+FIntVector FGrid3D::CalculateGridCount(const FVector& InVoxelSize, const FVector& InBoundsSize) const
+{
+	const int32 NumVoxelsX = FMath::CeilToInt(InBoundsSize.X / InVoxelSize.X);
+	const int32 NumVoxelsY = FMath::CeilToInt(InBoundsSize.Y / InVoxelSize.Y);
+	const int32 NumVoxelsZ = FMath::CeilToInt(InBoundsSize.Z / InVoxelSize.Z);
+
+	return FIntVector(NumVoxelsX, NumVoxelsY, NumVoxelsZ);
 }
 
 /**

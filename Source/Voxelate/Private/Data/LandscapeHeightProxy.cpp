@@ -39,14 +39,12 @@ FLandscapeHeightProxy::FLandscapeHeightProxy(const ULandscapeHeightfieldCollisio
  */
 void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* InLandscapeComponent)
 {
+	checkf(InLandscapeComponent, TEXT("Landscape component is null"));
+	
 	Transform = InLandscapeComponent->GetNavigableGeometryTransform();
-	// Bounds = InLandscapeComponent->Bounds.GetBox();
+	LandscapeHeightGrid = FGrid2D(*InLandscapeComponent);
 	
 	const FVector Size = Transform.GetScale3D();
-
-	// HeightCellCount = FIntPoint(
-	// 	InLandscapeComponent->CollisionSizeQuads + 1,
-	// 	InLandscapeComponent->CollisionSizeQuads + 1);
 	
 	// Get landscape collision height data
 	const uint16* CollisionHeightData = (uint16*)InLandscapeComponent->CollisionHeightData.LockReadOnly();
@@ -65,6 +63,21 @@ void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* 
 	InLandscapeComponent->CollisionHeightData.Unlock();
 }
 
+FGrid2D FLandscapeHeightProxy::GetGrid() const
+{
+	return LandscapeHeightGrid;
+}
+
+FGrid2D& FLandscapeHeightProxy::GetGrid()
+{
+	return LandscapeHeightGrid;
+}
+
+const FGrid2D& FLandscapeHeightProxy::GetGridConst() const
+{
+	return LandscapeHeightGrid;
+}
+
 double FLandscapeHeightProxy::GetHeight(const int32 Index) const
 {
 	checkf(CollisionHeights.IsValidIndex(Index), TEXT("Index out of bounds"));
@@ -74,11 +87,11 @@ double FLandscapeHeightProxy::GetHeight(const int32 Index) const
 
 double FLandscapeHeightProxy::GetHeight(const FIntPoint& Coordinate) const
 {
-	// checkf(IsCoordinateValid(Coordinate), TEXT("Coordinate is not valid"));
-	//
-	// return CollisionHeights[Coordinate.X + Coordinate.Y * HeightCellCount.X];
-	
-	return 0;
+	checkf(LandscapeHeightGrid.IsCellCoordinateValid(Coordinate), TEXT("Coordinate is not valid"));
+
+	const int32 Index = LandscapeHeightGrid.GetCellIndex(Coordinate);
+
+	return GetHeight(Index);
 }
 
 /**
@@ -155,5 +168,5 @@ TArray<double> FLandscapeHeightProxy::GetHeights(const FBox& InBounds, FGrid2D& 
 
 FBox FLandscapeHeightProxy::GetBounds() const
 {
-	return HeightGrid.GetBounds();
+	return LandscapeHeightGrid.GetBounds();
 }

@@ -46,7 +46,7 @@ protected:
 
 	// Each height value is the center of a cell which means the edges can have overlapping cells
 	UPROPERTY()
-	FGrid2D HeightGrid;
+	FGrid2D LandscapeHeightGrid;
 	
 public:
 	FLandscapeHeightProxy() = default;
@@ -54,6 +54,10 @@ public:
 
 	void Init(const ULandscapeHeightfieldCollisionComponent* InLandscapeComponent);
 
+	FGrid2D GetGrid() const;
+	FGrid2D& GetGrid();
+	const FGrid2D& GetGridConst() const;
+	
 	double GetHeight(const int32 Index) const;
 	double GetHeight(const FIntPoint& Coordinate) const;
 
