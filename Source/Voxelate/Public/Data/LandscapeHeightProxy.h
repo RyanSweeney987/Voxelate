@@ -29,6 +29,8 @@
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeHeightProxy.generated.h"
 
+typedef TStaticArray<double, 4> FHeightQuadrantArray;
+
 /**
  * Proxy to make easier to get landscape heights
  */
@@ -60,13 +62,14 @@ public:
 	
 	double GetHeight(const int32 Index) const;
 	double GetHeight(const FIntPoint& Coordinate) const;
+	double GetHeight(const FVector& InLocation) const;
 
 	double GetMaxHeight(const FVector& InLocation) const;
 	double GetMinHeight(const FVector& InLocation) const;
 	double GetMeanHeight(const FVector& InLocation) const;
 	double GetInterpolatedHeight(const FVector& InLocation) const;
 
-	TArray<double> GetHeights(const FVector& InLocation) const;
+	FHeightQuadrantArray GetHeights(const FVector& InLocation) const;
 	TArray<double> GetHeights(const FBox& InBounds, FGrid2D& OutLocalGrid) const;
 
 	FBox GetBounds() const;

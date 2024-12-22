@@ -29,6 +29,10 @@
 #include "UObject/Object.h"
 #include "Grid2D.generated.h"
 
+typedef TStaticArray<int32, 4> FIndexQuadrantArray;
+typedef TStaticArray<FIntPoint, 4> FCoordinateQuadrantArray;
+typedef TStaticArray<FVector, 4> FCenterQuadrantArray;
+
 /**
  * 2D grid of cells
  */
@@ -82,9 +86,17 @@ public:
 	FBox GetCellBounds(const int32 InIndex) const;
 	FBox GetCellBounds(const FIntPoint& InCoordinate) const;
 	FBox GetCellBounds(const FVector& InLocation) const;
+
+	FVector GetCellCenter(const int32 InIndex) const;
+	FVector GetCellCenter(const FIntPoint& InCoordinate) const;
+	FVector GetCellCenter(const FVector& InLocation) const;
 	
 	TArray<int32> GetCellIndicesFromBounds(const FBox& InBounds) const;
 	TArray<FIntPoint> GetCellCoordinatesFromBounds(const FBox& InBounds) const;
+	
+	FIndexQuadrantArray GetCellIndicesQuadrantFromLocation(const FVector& InLocation) const;
+	FCoordinateQuadrantArray GetCellCoordinatesQuadrantFromLocation(const FVector& InLocation) const;
+	FCenterQuadrantArray GetCellCentersQuadrantFromLocation(const FVector& InLocation) const;
 	
 	FGrid2D GetSubGrid(const FBox& InBounds) const;
 
@@ -101,5 +113,6 @@ private:
 	FBox CalculateGridBounds(const FVector& InCellSize, const FBox& InBounds) const;
 	FIntPoint CalculateGridCount(const FVector& InCellSize, const FVector& InBoundsSize) const;
 };
+
 
 
