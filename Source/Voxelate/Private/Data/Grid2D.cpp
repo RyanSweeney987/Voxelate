@@ -29,24 +29,14 @@ FGrid2D::FGrid2D(const FVector& InCellSize, const FBox& InBounds)
 	FGrid2D::Init(InCellSize, InBounds);
 }
 
-FGrid2D::FGrid2D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
-{
-	// const int32 ComponentSize = InLandscapeComponent.CollisionHeightData.GetElementCount() + 1;
-	// FBox ComponentBounds = InLandscapeComponent.Bounds.GetBox();
-	//
-	// const FVector QuadSize = ComponentBounds.GetSize() / FVector(
-	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
-	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
-	// 	0.5);
-	//
-	// ComponentBounds = ComponentBounds.ExpandBy(QuadSize);
-
-	FGrid2D::Init(InLandscapeComponent);
-}
+// FGrid2D::FGrid2D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
+// {
+// 	FGrid2D::Init(InLandscapeComponent);
+// }
 
 FGrid2D::FGrid2D(const FGrid2D& InCellGrid, const FBox& InBounds)
 {
-	checkf(IsInsideOrOnXY(InBounds), TEXT("New bounds must be inside the existing bounds"));
+	checkf(IsInsideXY(InBounds), TEXT("New bounds must be inside the existing bounds"));
 	
 	FGrid2D::Init(InCellGrid, InBounds);
 }
@@ -55,50 +45,23 @@ void FGrid2D::Init(const FVector& InCellSize, const FBox& InBounds)
 {
 	CellSize = InCellSize;
 	CellSize.Z = 100.0;
-	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	// FVector BoundsMin = InBounds.Min;
-	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / CellSize.X) * CellSize.X;
-	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / CellSize.Y) * CellSize.Y;
-	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / CellSize.Z) * CellSize.Z;
-	//
-	// FVector BoundsMax = InBounds.Max;
-	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / CellSize.X) * CellSize.X;
-	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / CellSize.Y) * CellSize.Y;
-	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / CellSize.Z) * CellSize.Z;
-	//
-	// Bounds = FBox(BoundsMin, BoundsMax);
 
 	Bounds = CalculateGridBounds(InCellSize, InBounds);
-	
-	// Calculate the number of voxels in each dimension
-	// CellCount = FIntPoint(
-	// 	FMath::CeilToInt(Bounds.GetSize().X / CellSize.X),
-	// 	FMath::CeilToInt(Bounds.GetSize().Y / CellSize.Y));
 
 	CellCount = CalculateGridCount(InCellSize, Bounds.GetSize());
 }
 
-void FGrid2D::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
-{
-	// TODO: Make it so that the vertices are the centers of the cells
-	
-	CellSize = InLandscapeComponent.GetComponentTransform().GetScale3D();
-
-	const FVector Min = InLandscapeComponent.Bounds.GetBox().Min - (CellSize / 2);
-	const FVector Max = InLandscapeComponent.Bounds.GetBox().Max + (CellSize / 2);
-	
-	Bounds = FBox(Min, Max);
-
-	CellCount = FIntPoint((Bounds.GetSize().X / CellSize.X), (Bounds.GetSize().Y / CellSize.Y));
-	
-	// const FVector QuadSize = ComponentBounds.GetSize() / FVector(
-	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
-	// 	FMath::Sqrt(static_cast<double>(ComponentSize)),
-	// 	0.5);
-	//
-	// CellSize = QuadSize;
-	// CellSize.Z = 100.0;
-}
+// void FGrid2D::Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent)
+// {
+// 	CellSize = InLandscapeComponent.GetComponentTransform().GetScale3D();
+// 	Bounds = InLandscapeComponent.Bounds.GetBox();
+//
+// 	const FVector Min = InLandscapeComponent.Bounds.GetBox().Min - (CellSize / 2);
+// 	const FVector Max = InLandscapeComponent.Bounds.GetBox().Max + (CellSize / 2);
+// 	
+// 	const FBox CellBounds = FBox(Min, Max);
+// 	CellCount = FIntPoint((CellBounds.GetSize().X / CellSize.X), (CellBounds.GetSize().Y / CellSize.Y));
+// }
 
 void FGrid2D::Init(const FGrid2D& InCellGrid, const FBox& InBounds)
 {
@@ -144,12 +107,12 @@ bool FGrid2D::IsCellCoordinateValid(const FIntPoint& InCoordinate) const
 
 bool FGrid2D::IsLocationInBounds(const FVector& InLocation) const
 {
-	return IsInsideOrOnXY(InLocation);
+	return IsInsideXY(InLocation);
 }
 
 bool FGrid2D::IsGridInside(const FGrid2D& InCellGrid) const
 {
-	return IsInsideOrOnXY(InCellGrid.Bounds);
+	return IsInsideXY(InCellGrid.Bounds);
 }
 
 int32 FGrid2D::GetCellIndex(const FVector& InLocation) const
@@ -196,11 +159,11 @@ FIntPoint FGrid2D::GetCellCoordinate(const int32 InIndex) const
 FBox FGrid2D::GetCellBounds(const int32 InIndex) const
 {
 	checkf(IsCellIndexValid(InIndex), TEXT("Index is out of bounds"));
+
+	const int32 X = InIndex % CellCount.X;
+	const int32 Y = InIndex / CellCount.X;
 	
-	const int32 Y = (InIndex - CellCount.X * CellCount.Y) / CellCount.X;
-	const int32 X = InIndex - CellCount.X * CellCount.Y - Y * CellCount.X;
-	
-	const FVector Min = Bounds.Min + FVector(X * CellSize.X, Y * CellSize.Y, CellSize.Z);
+	const FVector Min = Bounds.Min + FVector(X * CellSize.X, Y * CellSize.Y, 0);
 	const FVector Max = Min + CellSize;
 	
 	return FBox(Min, Max);
@@ -210,7 +173,10 @@ FBox FGrid2D::GetCellBounds(const FIntPoint& InCoordinate) const
 {
 	checkf(IsCellCoordinateValid(InCoordinate), TEXT("Invalid cell coordinate %s"), *InCoordinate.ToString());
 
-	const FVector Min = Bounds.Min + FVector(InCoordinate.X * CellSize.X, InCoordinate.Y * CellSize.Y, Bounds.Min.Z);
+	const int32 X = InCoordinate.X;
+	const int32 Y = InCoordinate.Y;
+	
+	const FVector Min = Bounds.Min + FVector(X * CellSize.X, Y * CellSize.Y, 0);
 	const FVector Max = Min + CellSize;
 
 	return FBox(Min, Max);
@@ -227,8 +193,8 @@ FVector FGrid2D::GetCellCenter(const int32 InIndex) const
 {
 	checkf(IsCellIndexValid(InIndex), TEXT("Index is out of bounds"));
 
-	const int32 Y = (InIndex - CellCount.X * CellCount.Y) / CellCount.X;
-	const int32 X = InIndex - CellCount.X * CellCount.Y - Y * CellCount.X;
+	const int32 X = InIndex % CellCount.X;
+	const int32 Y = InIndex / CellCount.X;
 	
 	const FVector Min = Bounds.Min + FVector(X * CellSize.X, Y * CellSize.Y, 0);
 	
@@ -237,9 +203,12 @@ FVector FGrid2D::GetCellCenter(const int32 InIndex) const
 
 FVector FGrid2D::GetCellCenter(const FIntPoint& InCoordinate) const
 {
-	checkf(IsCellCoordinateValid(InCoordinate), TEXT("Invalid cell coordinate %s"), *InCoordinate.ToString());
+	checkf(IsCellCoordinateValid(InCoordinate), TEXT("Invalid cell coordinate - InCoord: %s - Count: %s"), *InCoordinate.ToString(), *CellCount.ToString());
 
-	const FVector Min = Bounds.Min + FVector(InCoordinate.X * CellSize.X, InCoordinate.Y * CellSize.Y, 0);
+	const int32 X = InCoordinate.X;
+	const int32 Y = InCoordinate.Y;
+	
+	const FVector Min = Bounds.Min + FVector(X * CellSize.X, Y * CellSize.Y, 0);
 
 	return Min + (CellSize * FVector(0.5, 0.5, 1.0));
 }
@@ -308,41 +277,98 @@ TArray<FIntPoint> FGrid2D::GetCellCoordinatesFromBounds(const FBox& InBounds) co
 /**
  * Takes the cell that the location returns and also returns the neighbouring cells
  * ie: If in the slightly NE of a cell, it will return the cell it's in and the cells to the E, N and NE
+ * Order is always the following - A is the minimum index, D is the maximum index:
+ * ---------
+ * | C | D |
+ * ---------
+ * | A | B |
+ * ---------
  * @param InLocation The location to get the indices for
  * @return The indices of the cells at the location
  */
-FIndexQuadrantArray FGrid2D::GetCellIndicesQuadrantFromLocation(const FVector& InLocation) const
-{
-	// TODO:
-	
-	return FIndexQuadrantArray();
-}
+// FIndexQuadrantArray FGrid2D::GetCellIndicesQuadrantFromLocation(const FVector& InLocation) const
+// {
+// 	const FCoordinateQuadrantArray Coordinates = GetCellCoordinatesQuadrantFromLocation(InLocation);
+// 	
+// 	const FIndexQuadrantArray Result = {
+// 		GetCellIndex(Coordinates[0]),
+// 		GetCellIndex(Coordinates[1]),
+// 		GetCellIndex(Coordinates[2]),
+// 		GetCellIndex(Coordinates[3])
+// 	};
+// 	
+// 	return Result;
+// }
 
 /**
  * Takes the cell that the location returns and also returns the neighbouring cells
  * ie: If in the slightly NE of a cell, it will return the cell it's in and the cells to the E, N and NE
+ * Order is always the following - A is the minimum coordinate, D is the maximum coordinate:
+ * ---------
+ * | C | D |
+ * ---------
+ * | A | B |
+ * ---------
  * @param InLocation The location to get the coordinates for
  * @return The coordinates of the cells at the location
  */
-FCoordinateQuadrantArray FGrid2D::GetCellCoordinatesQuadrantFromLocation(const FVector& InLocation) const
-{
-	// TODO:
-
-	return FCoordinateQuadrantArray();
-}
+// FCoordinateQuadrantArray FGrid2D::GetCellCoordinatesQuadrantFromLocation(const FVector& InLocation) const
+// {
+// 	const int32 Index = GetCellIndex(InLocation);
+// 	const FIntPoint Coordinate = GetCellCoordinate(Index);
+// 	const FVector Center = GetCellCenter(Coordinate);
+//
+// 	// Get the difference between the location and the center of the cell so we can get the sign of the delta
+// 	const FVector Delta = InLocation - Center;
+// 	
+// 	const int32 XSign = FMath::Sign(Delta.X);
+// 	const int32 YSign = FMath::Sign(Delta.Y);
+//
+// 	// Get the minimum X and Y coordinates
+// 	const int32 XMin = FMath::Min(Coordinate.X, Coordinate.X + XSign);
+// 	const int32 YMin = FMath::Min(Coordinate.Y, Coordinate.Y + YSign);
+//
+// 	// Create the coordinates for the quadrants from the minimum X and Y coordinates
+// 	const FIntPoint A = FIntPoint(XMin, YMin);
+// 	const FIntPoint B = FIntPoint(XMin + 1, YMin);
+// 	const FIntPoint C = FIntPoint(XMin, YMin + 1);
+// 	const FIntPoint D = FIntPoint(XMin + 1, YMin + 1);
+//
+// 	const FCoordinateQuadrantArray Result = {
+// 		A,
+// 		B,
+// 		C,
+// 		D
+// 	};
+// 	
+// 	return Result;
+// }
 
 /**
  * Takes the cell center that the location returns and also returns the neighbouring cell centers
  * ie: If in the slightly NE of a cell, it will return the cell it's in and the cells to the E, N and NE
+ * Order is always the following - A is the minimum location, D is the maximum location:
+ * ---------
+ * | C | D |
+ * ---------
+ * | A | B |
+ * ---------
  * @param InLocation The location to get the centers for
  * @return The centers of the cells at the location
  */
-FCenterQuadrantArray FGrid2D::GetCellCentersQuadrantFromLocation(const FVector& InLocation) const
-{
-	// TODO:
-
-	return FCenterQuadrantArray();
-}
+// FCenterQuadrantArray FGrid2D::GetCellCentersQuadrantFromLocation(const FVector& InLocation) const
+// {
+// 	const FCoordinateQuadrantArray Coordinates = GetCellCoordinatesQuadrantFromLocation(InLocation);
+// 	
+// 	const FCenterQuadrantArray Result = {
+// 		GetCellCenter(Coordinates[0]),
+// 		GetCellCenter(Coordinates[1]),
+// 		GetCellCenter(Coordinates[2]),
+// 		GetCellCenter(Coordinates[3])
+// 	};
+//
+// 	return Result;
+// }
 
 FGrid2D FGrid2D::GetSubGrid(const FBox& InBounds) const
 {
@@ -364,14 +390,14 @@ bool FGrid2D::operator!=(const FGrid2D& InCellGrid) const
 	return !(*this == InCellGrid);
 }
 
-bool FGrid2D::IsInsideOrOnXY(const FBox& InBounds) const
+bool FGrid2D::IsInsideXY(const FBox& InBounds) const
 {
-	return Bounds.IsInsideOrOnXY(InBounds.Min) && Bounds.IsInsideOrOnXY(InBounds.Max);
+	return Bounds.IsInsideXY(InBounds.Min) && Bounds.IsInsideXY(InBounds.Max);
 }
 
-bool FGrid2D::IsInsideOrOnXY(const FVector& InLocation) const
+bool FGrid2D::IsInsideXY(const FVector& InLocation) const
 {
-	return Bounds.IsInsideOrOnXY(InLocation);
+	return Bounds.IsInsideXY(InLocation);
 }
 
 bool FGrid2D::IntersectXY(const FBox& InBounds) const
@@ -441,3 +467,11 @@ FIntPoint FGrid2D::CalculateGridCount(const FVector& InCellSize, const FVector& 
 
 	return FIntPoint(NumCellsX, NumCellsY);
 }
+
+// FIntPoint FGrid2D::ClampCoordinate(const FIntPoint& InCoordinate) const
+// {
+// 	return FIntPoint(
+// 		FMath::Clamp(InCoordinate.X, 0, CellCount.X - 1),
+// 		FMath::Clamp(InCoordinate.Y, 0, CellCount.Y - 1)
+// 	);
+// }

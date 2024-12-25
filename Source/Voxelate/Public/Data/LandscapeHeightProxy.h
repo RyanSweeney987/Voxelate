@@ -46,7 +46,7 @@ protected:
 	UPROPERTY()
 	TArray<double> CollisionHeights;
 
-	// Each height value is the center of a cell which means the edges can have overlapping cells
+	// Each cell center is in the center of 4 height values
 	UPROPERTY()
 	FGrid2D LandscapeHeightGrid;
 	
@@ -61,8 +61,8 @@ public:
 	const FGrid2D& GetGridConst() const;
 	
 	double GetHeight(const int32 Index) const;
-	double GetHeight(const FIntPoint& Coordinate) const;
-	double GetHeight(const FVector& InLocation) const;
+	// double GetHeight(const FIntPoint& Coordinate) const;
+	// double GetHeight(const FVector& InLocation) const;
 
 	double GetMaxHeight(const FVector& InLocation) const;
 	double GetMinHeight(const FVector& InLocation) const;

@@ -100,14 +100,24 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 		{
 			if(UPrimitiveComponent* PrimitiveComponent = OverlapResult.GetComponent(); PrimitiveComponent && PrimitiveComponent->IsNavigationRelevant())
 			{
+				// TODO: Fix issue with overlapping components
+				const FBox PrimCompBounds = PrimitiveComponent->Bounds.GetBox();
+				if(!InVoxelGrid.IsInsideOrOn(PrimCompBounds) || !InVoxelGrid.GetBounds().IntersectXY(PrimCompBounds))
+				{
+					continue;
+				}
+				
 				FGrid3D LocalVoxelGrid = InVoxelGrid.GetSubGrid(PrimitiveComponent->GetNavigationBounds());
 				FVoxelData LocalVoxelData(LocalVoxelGrid);
 
-				// Process the primitive component
-				ProcessPrimitiveComponent(*PrimitiveComponent, LocalVoxelData);
-
-				// Apply the local voxel data to the output voxel data
-				OutVoxelData.Or(LocalVoxelData);
+				FBox Bounds = LocalVoxelGrid.GetBounds();
+				DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Purple, false, 5.0f);
+				
+				// // Process the primitive component
+				// ProcessPrimitiveComponent(*PrimitiveComponent, LocalVoxelData);
+				//
+				// // Apply the local voxel data to the output voxel data
+				// OutVoxelData.Or(LocalVoxelData);
 			}
 		}
 	}
@@ -229,6 +239,12 @@ void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& Lands
 		{
 			FBox VoxelBounds = LandscapeHeightGrid.GetCellBounds(FIntPoint(X, Y));
 			DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Emerald, false, 5.0f);
+			
+			if(const FVector VoxelCenter = VoxelBounds.GetCenter(); LandscapeHeightGrid.IsLocationInBounds(VoxelCenter))
+			{
+				const double InterpHeight = LandscapeHeightProxy.GetInterpolatedHeight(VoxelCenter);
+				DrawDebugBox(World, FVector(VoxelCenter.X, VoxelCenter.Y, InterpHeight), FVector(10, 10, 10), FColor::Green, false, 5.0f);
+			}
 		}
 	}
 }

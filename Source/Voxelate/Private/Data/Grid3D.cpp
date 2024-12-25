@@ -478,7 +478,35 @@ TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) 
  */
 FGrid3D FGrid3D::GetSubGrid(const FBox& InBounds) const
 {
-	const FBox& Overlap = Bounds.Overlap(InBounds);
+	// TODO: Fix situation where bounds are larger than grid bounds
+
+	const FVector Min = Bounds.Min;
+	const FVector Max = Bounds.Max;
+	
+	const FVector InMin = InBounds.Min;
+	const FVector InMax = InBounds.Max;
+
+	const double MinX = FMath::Max(Min.X, InMin.X);
+	const double MinY = FMath::Max(Min.Y, InMin.Y);
+	const double MinZ = FMath::Max(Min.Z, InMin.Z);
+
+	const double MaxX = FMath::Min(Max.X, InMax.X);
+	const double MaxY = FMath::Min(Max.Y, InMax.Y);
+	const double MaxZ = FMath::Min(Max.Z, InMax.Z);
+
+	const FVector NewMin = FVector(MinX, MinY, MinZ);
+	const FVector NewMax = FVector(MaxX, MaxY, MaxZ);
+
+	const FBox Overlap = FBox(NewMin, NewMax);
+	
+	// const FBox& Overlap = Bounds.Overlap(InBounds);
+	// const FVector Min = Overlap.Min;
+	// const FVector Max = Overlap.Max;
+	// const double VolumeA = (Max.X - Min.X);
+	// const double VolumeB = (Max.Y - Min.Y);
+	// const double VolumeC = (Max.Z - Min.Z);
+	// const double FinalVolume = VolumeA * VolumeB * VolumeC;
+	// const double Volume = Overlap.GetVolume();
 	// Make sure that the bounds intersect or are completely inside the grid bounds
 	checkf(Overlap.GetVolume() > 0, TEXT("Bounds must overlap or be inside the grid bounds"));
 	// checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must overlap or be inside the grid bounds"));

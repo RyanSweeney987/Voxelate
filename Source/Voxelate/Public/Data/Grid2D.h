@@ -29,9 +29,12 @@
 #include "UObject/Object.h"
 #include "Grid2D.generated.h"
 
-typedef TStaticArray<int32, 4> FIndexQuadrantArray;
-typedef TStaticArray<FIntPoint, 4> FCoordinateQuadrantArray;
-typedef TStaticArray<FVector, 4> FCenterQuadrantArray;
+// TStaticArray<int32, 4>
+// typedef TStaticArray<int32, 4> FIndexQuadrantArray;
+// // TStaticArray<FIntPoint, 4>
+// typedef TStaticArray<FIntPoint, 4> FCoordinateQuadrantArray;
+// // TStaticArray<FVector, 4>
+// typedef TStaticArray<FVector, 4> FCenterQuadrantArray;
 
 /**
  * 2D grid of cells
@@ -57,13 +60,13 @@ protected:
 public:
 	FGrid2D() = default;
 	FGrid2D(const FVector& InCellSize, const FBox& InBounds);
-	FGrid2D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
+	// FGrid2D(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
 	FGrid2D(const FGrid2D& InCellGrid, const FBox& InBounds);
 
 	virtual ~FGrid2D() = default;
 	
 	virtual void Init(const FVector& InCellSize, const FBox& InBounds);
-	virtual void Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
+	// virtual void Init(const ULandscapeHeightfieldCollisionComponent& InLandscapeComponent);
 	virtual void Init(const FGrid2D& InCellGrid, const FBox& InBounds);
 	
 	FBox GetBounds() const;
@@ -94,9 +97,9 @@ public:
 	TArray<int32> GetCellIndicesFromBounds(const FBox& InBounds) const;
 	TArray<FIntPoint> GetCellCoordinatesFromBounds(const FBox& InBounds) const;
 	
-	FIndexQuadrantArray GetCellIndicesQuadrantFromLocation(const FVector& InLocation) const;
-	FCoordinateQuadrantArray GetCellCoordinatesQuadrantFromLocation(const FVector& InLocation) const;
-	FCenterQuadrantArray GetCellCentersQuadrantFromLocation(const FVector& InLocation) const;
+	// FIndexQuadrantArray GetCellIndicesQuadrantFromLocation(const FVector& InLocation) const;
+	// FCoordinateQuadrantArray GetCellCoordinatesQuadrantFromLocation(const FVector& InLocation) const;
+	// FCenterQuadrantArray GetCellCentersQuadrantFromLocation(const FVector& InLocation) const;
 	
 	FGrid2D GetSubGrid(const FBox& InBounds) const;
 
@@ -104,15 +107,16 @@ public:
 	bool operator!=(const FGrid2D& InCellGrid) const;
 
 private:
-	bool IsInsideOrOnXY(const FBox& InBounds) const;
-	bool IsInsideOrOnXY(const FVector& InLocation) const;
+	bool IsInsideXY(const FBox& InBounds) const;
+	bool IsInsideXY(const FVector& InLocation) const;
 	bool IntersectXY(const FBox& InBounds) const;
 
 	FBox OverlapXY(const FBox& InBounds) const;
 
 	FBox CalculateGridBounds(const FVector& InCellSize, const FBox& InBounds) const;
 	FIntPoint CalculateGridCount(const FVector& InCellSize, const FVector& InBoundsSize) const;
-};
 
+	// FIntPoint ClampCoordinate(const FIntPoint& InCoordinate) const;
+};
 
 
