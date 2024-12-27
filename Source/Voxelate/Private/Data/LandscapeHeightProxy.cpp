@@ -42,7 +42,11 @@ void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* 
 	checkf(InLandscapeComponent, TEXT("Landscape component is null"));
 	
 	Transform = InLandscapeComponent->GetNavigableGeometryTransform();
+	ComponentSize = InLandscapeComponent->CollisionSizeQuads;
+	LandscapeComponentBounds = InLandscapeComponent->Bounds.GetBox();
 	
+	// The size results in a 63x63 grid if using the default 63x63 landscape component
+	// Number of actual height data points is then 64x64
 	const FVector Size = Transform.GetScale3D();
 	LandscapeHeightGrid = FGrid2D(Size, InLandscapeComponent->Bounds.GetBox());
 	
@@ -52,15 +56,32 @@ void FLandscapeHeightProxy::Init(const ULandscapeHeightfieldCollisionComponent* 
 	
 	CollisionHeights.SetNumUninitialized(ElementCount);
 
+	// https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-technical-guide-in-unreal-engine#calculatingheightmapzscale
+	
 	// Read the height data and calculate the heights
 	for(int64 i = 0; i < ElementCount; i++)
 	{
 		const uint16 HeightValue = CollisionHeightData[i];
-		const double Height = FMath::Lerp(-256.0, 255.992, static_cast<double>(HeightValue) / static_cast<double>(TNumericLimits<uint16>::Max())) * Size.Z;
+		const double Height = FMath::Lerp(-256.0, 256.0, static_cast<double>(HeightValue) / static_cast<double>(TNumericLimits<uint16>::Max())) * Size.Z;
 		CollisionHeights[i] = Height;
 	}
 
 	InLandscapeComponent->CollisionHeightData.Unlock();
+}
+
+int32 FLandscapeHeightProxy::GetComponentSize() const
+{
+	return ComponentSize;
+}
+
+TArray<double> FLandscapeHeightProxy::GetCollisionHeights()
+{
+	return CollisionHeights;
+}
+
+const TArray<double>& FLandscapeHeightProxy::GetCollisionHeightsConst() const
+{
+	return CollisionHeights;
 }
 
 FGrid2D FLandscapeHeightProxy::GetGrid() const
@@ -78,45 +99,48 @@ const FGrid2D& FLandscapeHeightProxy::GetGridConst() const
 	return LandscapeHeightGrid;
 }
 
-/**
- * Gets the height at an index from the collision height data
- * @param Index The index to get the height from
- * @return The height at the input index
- */
-double FLandscapeHeightProxy::GetHeight(const int32 Index) const
+int32 FLandscapeHeightProxy::GetHeightIndex(const FVector& InLocation) const
 {
-	checkf(CollisionHeights.IsValidIndex(Index), TEXT("Index out of bounds"));
+	checkf(LandscapeHeightGrid.IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
+
+	const FIntPoint Coordinate = LandscapeHeightGrid.GetCellCoordinate(InLocation);
 	
-	return CollisionHeights[Index];
+	return Coordinate.X + Coordinate.Y * (ComponentSize + 1);
 }
 
 /**
- * Gets the nearest height sample at a coordinate
- * @param Coordinate The coordinate to get the height from
- * @return The height at the input coordinate
+ * Gets the height at an index from the collision height data
+ * @param HeightIndex The index based on the height data to get the height from
+ * @return The height at the input index
+ * @see GetHeightIndex
  */
-// double FLandscapeHeightProxy::GetHeight(const FIntPoint& Coordinate) const
-// {
-// 	checkf(LandscapeHeightGrid.IsCellCoordinateValid(Coordinate), TEXT("Coordinate is not valid"));
-//
-// 	const int32 Index = LandscapeHeightGrid.GetCellIndex(Coordinate);
-//
-// 	return GetHeight(Index);
-// }
+double FLandscapeHeightProxy::GetHeight(const int32 HeightIndex) const
+{
+	checkf(CollisionHeights.IsValidIndex(HeightIndex), TEXT("Index out of bounds"));
+	
+	return CollisionHeights[HeightIndex];
+}
 
 /**
- * Gets the nearest height sample at a location
- * @param InLocation The world space location to sample
- * @return The height at the input location
+ * Gets the height at an index from the collision height data with the Z translation applied
+ * @param HeightIndex The index based on the height data to get the height from
+ * @return The height at the input index
+ * @see GetHeightIndex
  */
-// double FLandscapeHeightProxy::GetHeight(const FVector& InLocation) const
-// {
-//     checkf(LandscapeHeightGrid.IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
-//
-// 	const int32 Index = LandscapeHeightGrid.GetCellIndex(InLocation);
-//     
-//     return GetHeight(Index);
-// }
+double FLandscapeHeightProxy::GetHeightTranslated(const int32 HeightIndex) const
+{
+	checkf(CollisionHeights.IsValidIndex(HeightIndex), TEXT("Index out of bounds"));
+	
+	return CollisionHeights[HeightIndex] + Transform.GetLocation().Z;
+}
+
+/**
+ * @return The Z translation of the landscape component
+ */
+double FLandscapeHeightProxy::GetHeightTranslation() const
+{
+	return Transform.GetLocation().Z;
+}
 
 /**
  * @param InLocation The world space location to sample
@@ -180,32 +204,26 @@ double FLandscapeHeightProxy::GetMeanHeight(const FVector& InLocation) const
 double FLandscapeHeightProxy::GetInterpolatedHeight(const FVector& InLocation) const
 {
 	checkf(LandscapeHeightGrid.IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
-
-	// const int32 Index = LandscapeHeightGrid.GetCellIndex(InLocation);
-	// UE_LOG(LogTemp, Warning, TEXT("Index: %d - Location: %s"), Index, *InLocation.ToString());
-	
-	return 0;
-	// return GetHeight(LandscapeHeightGrid.GetCellIndex(InLocation));
 	
 	// Centers are the same as the height vertices on the XY plane
-	// const FBox CellBounds = LandscapeHeightGrid.GetCellBounds(InLocation);
+	const FBox CellBounds = LandscapeHeightGrid.GetCellBounds(InLocation);
 	
-	// const FVector MinVector = CellBounds.Min;
-	// const FVector MaxVector = CellBounds.Max - MinVector;
-	// const FVector RelativeDistance = InLocation - MinVector;
- //
-	// const double XInterp = RelativeDistance.X / MaxVector.X;
-	// const double YInterp = RelativeDistance.Y / MaxVector.Y;
-	//
-	// const FHeightQuadrantArray Heights = GetHeights(InLocation);
- //
-	// const double InterpolatedHeight = FMath::Lerp(
- //        FMath::Lerp(Heights[0], Heights[1], XInterp),
- //        FMath::Lerp(Heights[2], Heights[3], XInterp),
- //        YInterp
- //    );
-
-	// return InterpolatedHeight;
+	const FVector MinVector = CellBounds.Min;
+	const FVector MaxVector = CellBounds.Max - MinVector;
+	const FVector RelativeDistance = InLocation - MinVector;
+ 
+	const double XInterp = RelativeDistance.X / MaxVector.X;
+	const double YInterp = RelativeDistance.Y / MaxVector.Y;
+	
+	const FHeightQuadrantArray Heights = GetHeights(InLocation);
+ 
+	const double InterpolatedHeight = FMath::Lerp(
+        FMath::Lerp(Heights[0], Heights[1], XInterp),
+        FMath::Lerp(Heights[2], Heights[3], XInterp),
+        YInterp
+    );
+ 
+	return InterpolatedHeight;
 }
 
 /**
@@ -220,23 +238,22 @@ double FLandscapeHeightProxy::GetInterpolatedHeight(const FVector& InLocation) c
  */
 FHeightQuadrantArray FLandscapeHeightProxy::GetHeights(const FVector& InLocation) const
 {
-	// TODO: Get the nearest 4 heights
 	checkf(LandscapeHeightGrid.IsLocationInBounds(InLocation), TEXT("Location is not in bounds"));
 
 	const FIntPoint Cell = LandscapeHeightGrid.GetCellCoordinate(InLocation);
+
+	const int32 Width = ComponentSize + 1;
 	
-	const int32 IndexA = Cell.X + Cell.Y * LandscapeHeightGrid.GetVectorCellCount().X;
+	const int32 IndexA = Cell.X + Cell.Y * Width;
 	const int32 IndexB = IndexA + 1;
-	const int32 IndexC = IndexA + LandscapeHeightGrid.GetVectorCellCount().X;
+	const int32 IndexC = IndexA + Width;
 	const int32 IndexD = IndexC + 1;
 	
-	// const FIndexQuadrantArray Indices = LandscapeHeightGrid.GetCellIndicesQuadrantFromLocation(InLocation);
-
 	const FHeightQuadrantArray Heights = {
 		GetHeight(IndexA),
-		GetHeight(IndexA),
-		GetHeight(IndexA),
-		GetHeight(IndexA)
+		GetHeight(IndexB),
+		GetHeight(IndexC),
+		GetHeight(IndexD)
 	};
 	
 	return Heights;
@@ -254,7 +271,29 @@ TArray<double> FLandscapeHeightProxy::GetHeights(const FBox& InBounds, FGrid2D& 
 	return TArray<double>();
 }
 
-FBox FLandscapeHeightProxy::GetBounds() const
+FHeightQuadrantArray FLandscapeHeightProxy::GetHeightIndices(const FVector& InLocation) const
+{
+	const FIntPoint Cell = LandscapeHeightGrid.GetCellCoordinate(InLocation);
+	
+	const int32 IndexA = Cell.X + Cell.Y * ComponentSize;
+	const int32 IndexB = IndexA + 1;
+	const int32 IndexC = IndexA + ComponentSize;
+	const int32 IndexD = IndexC + 1;
+
+	return {
+		IndexA,
+		IndexB,
+		IndexC,
+		IndexD
+	};
+}
+
+FBox FLandscapeHeightProxy::GetLandscapeComponentBounds() const
+{
+	return LandscapeComponentBounds;
+}
+
+FBox FLandscapeHeightProxy::GetGridBounds() const
 {
 	return LandscapeHeightGrid.GetBounds();
 }

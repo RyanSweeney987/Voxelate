@@ -85,6 +85,8 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 	checkf(World, TEXT("World is null"));
 
 	const FGrid3D& InVoxelGrid = OutVoxelData.GetVoxelGrid();
+
+	// DrawDebugBox(World, InVoxelGrid.GetBounds().GetCenter(), InVoxelGrid.GetBounds().GetExtent(), FColor::Blue, false, 5.0f);
 	
 	const FVector& BoxOrigin = InVoxelGrid.GetBounds().GetCenter();
 	const FVector& BoxExtent = InVoxelGrid.GetBounds().GetExtent();
@@ -100,24 +102,23 @@ void FVoxelator::VoxelateNavigableGeometry(FVoxelData& OutVoxelData) const
 		{
 			if(UPrimitiveComponent* PrimitiveComponent = OverlapResult.GetComponent(); PrimitiveComponent && PrimitiveComponent->IsNavigationRelevant())
 			{
-				// TODO: Fix issue with overlapping components
 				const FBox PrimCompBounds = PrimitiveComponent->Bounds.GetBox();
-				if(!InVoxelGrid.IsInsideOrOn(PrimCompBounds) || !InVoxelGrid.GetBounds().IntersectXY(PrimCompBounds))
+				const FBox OverlapBounds = InVoxelGrid.GetBoundsOverlap(PrimCompBounds);
+
+				// We don't want any non-zero volume overlaps within an error tolerance
+				if(OverlapBounds.GetVolume() <= DBL_EPSILON) 
 				{
 					continue;
 				}
-				
-				FGrid3D LocalVoxelGrid = InVoxelGrid.GetSubGrid(PrimitiveComponent->GetNavigationBounds());
+								
+				FGrid3D LocalVoxelGrid = InVoxelGrid.GetSubGrid(OverlapBounds);
 				FVoxelData LocalVoxelData(LocalVoxelGrid);
-
-				FBox Bounds = LocalVoxelGrid.GetBounds();
-				DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Purple, false, 5.0f);
 				
-				// // Process the primitive component
-				// ProcessPrimitiveComponent(*PrimitiveComponent, LocalVoxelData);
-				//
-				// // Apply the local voxel data to the output voxel data
-				// OutVoxelData.Or(LocalVoxelData);
+				// Process the primitive component
+				ProcessPrimitiveComponent(*PrimitiveComponent, LocalVoxelData);
+				
+				// Apply the local voxel data to the output voxel data
+				OutVoxelData.Or(LocalVoxelData);
 			}
 		}
 	}
@@ -136,8 +137,6 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 	{
 		ULandscapeHeightfieldCollisionComponent* LandscapeComponent = Cast<ULandscapeHeightfieldCollisionComponent>(&InPrimitiveComponent);
 		ProcessLandscape(*LandscapeComponent, InVoxelData);
-
-		return;
 	}
 
 #if false
@@ -172,78 +171,33 @@ void FVoxelator::ProcessPrimitiveComponent(UPrimitiveComponent& InPrimitiveCompo
 
 void FVoxelator::ProcessLandscape(ULandscapeHeightfieldCollisionComponent& LandscapeComponent, FVoxelData& InVoxelData) const
 {
-	const FIntVector LocalGridSize = InVoxelData.GetVoxelGridConst().GetVectorVoxelCount();
-
-	const FGrid3D LandscapeVoxelGrid(LandscapeComponent);
-	// DrawDebugBox(World, LandscapeVoxelGrid.GetBounds().GetCenter(), LandscapeVoxelGrid.GetBounds().GetExtent(), FColor::Purple, false, 5.0f);
-	
-	// https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-technical-guide-in-unreal-engine#calculatingheightmapzscale
-
-	const FTransform InstanceTransform = LandscapeComponent.GetNavigableGeometryTransform();
-	
-	const int32 ComponentSize = LandscapeComponent.CollisionSizeQuads;
-	const FVector Size = InstanceTransform.GetScale3D();
-	const FVector Location = InstanceTransform.GetLocation();
-
-	// Get landscape collision height data
-	const uint16* CollisionHeightData = (uint16*)LandscapeComponent.CollisionHeightData.LockReadOnly();
-	const int64 ElementCount = LandscapeComponent.CollisionHeightData.GetElementCount();
-	
-	TArray<double> CollisionHeights;
-	CollisionHeights.SetNumUninitialized(ElementCount);
-	
-	for(int64 i = 0; i < ElementCount; i++)
-	{
-		const uint16 HeightValue = CollisionHeightData[i];
-		const double Height = FMath::Lerp(-256.0, 255.992, static_cast<double>(HeightValue) / static_cast<double>(TNumericLimits<uint16>::Max())) * Size.Z;
-		CollisionHeights[i] = Height;
-	}	
-	
-	LandscapeComponent.CollisionHeightData.Unlock();
-
-	// Draw the collision heights
-	for(int32 Y = 0; Y < ComponentSize + 1; Y++)
-	{
-		for(int32 X = 0; X < ComponentSize + 1; X++)
-		{
-			// const FVector Current = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
-			// const FVector Right = FVector((X + 1) * Size.X, Y * Size.Y, CollisionHeights[(X + 1) + Y * (ComponentSize + 1)]);
-			// const FVector Up = FVector(X * Size.X, (Y + 1) * Size.Y, CollisionHeights[X + (Y + 1) * (ComponentSize + 1)]);
-			// const FVector Diagonal = FVector((X + 1) * Size.X, (Y + 1) * Size.Y, CollisionHeights[(X + 1) + (Y + 1) * (ComponentSize + 1)]);
-			//
-			// const FVector Min = FVector::Min(Current, FVector::Min(Right, FVector::Min(Up, Diagonal)));
-			// const FVector Max = FVector::Max(Current, FVector::Max(Right, FVector::Max(Up, Diagonal)));
-			//
-			// const FBox Bounds = FBox(Min, Max);
-			//
-			// DrawDebugBox(World, Bounds.GetCenter(), Bounds.GetExtent(), FColor::Green, false, 5.0f);
-			
-			const FVector Start = FVector(X * Size.X, Y * Size.Y, CollisionHeights[X + Y * (ComponentSize + 1)]);
-			const FVector StartWorldLocation = Start + Location;
-			
-			DrawDebugBox(World, StartWorldLocation, FVector(10, 10, 10), FColor::Cyan, false, 5.0f);
-		}
-	}
-
+	// Landscape proxy to make sampling the height data easier
 	FLandscapeHeightProxy LandscapeHeightProxy(&LandscapeComponent);
-	// DrawDebugBox(World, LandscapeHeightProxy.GetBounds().GetCenter(), LandscapeHeightProxy.GetBounds().GetExtent(), FColor::Magenta, false, 5.0f);
+	const FGrid2D& LandscapeHeightProxyGrid = LandscapeHeightProxy.GetGridConst();
+	
+	TArray<double> CollisionHeights = LandscapeHeightProxy.GetCollisionHeights();
 
-	const FGrid2D& LandscapeHeightGrid = LandscapeHeightProxy.GetGridConst();
-	DrawDebugBox(World, LandscapeHeightGrid.GetBounds().GetCenter(), LandscapeHeightGrid.GetBounds().GetExtent(), FColor::Magenta, false, 5.0f);
+	// Local voxel grid used just for the landscape component
+	const FGrid3D LocalVoxelGrid = InVoxelData.GetVoxelGrid().GetSubGrid(LandscapeHeightProxy.GetLandscapeComponentBounds());
+	const FIntVector InGridSize = LocalVoxelGrid.GetVectorVoxelCount();
 	
-	FIntPoint Count = LandscapeHeightGrid.GetVectorCellCount();
-	
-	for(int32 Y = 0; Y < Count.Y; Y++)
+	for(int32 Y = 0; Y < InGridSize.Y; Y++)
 	{
-		for(int32 X = 0; X < Count.X; X++)
+		for(int32 X = 0; X < InGridSize.X; X++)
 		{
-			FBox VoxelBounds = LandscapeHeightGrid.GetCellBounds(FIntPoint(X, Y));
-			DrawDebugBox(World, VoxelBounds.GetCenter(), VoxelBounds.GetExtent(), FColor::Emerald, false, 5.0f);
-			
-			if(const FVector VoxelCenter = VoxelBounds.GetCenter(); LandscapeHeightGrid.IsLocationInBounds(VoxelCenter))
+			const FBox VoxelBounds = LocalVoxelGrid.GetVoxelBounds(FIntVector(X, Y, 0));
+
+			if(const FVector VoxelCenter = VoxelBounds.GetCenter(); LandscapeHeightProxyGrid.IsLocationInBounds(VoxelCenter))
 			{
-				const double InterpHeight = LandscapeHeightProxy.GetInterpolatedHeight(VoxelCenter);
-				DrawDebugBox(World, FVector(VoxelCenter.X, VoxelCenter.Y, InterpHeight), FVector(10, 10, 10), FColor::Green, false, 5.0f);
+				const double InterpHeight = LandscapeHeightProxy.GetInterpolatedHeight(VoxelCenter) + LandscapeHeightProxy.GetHeightTranslation() + SMALL_NUMBER;
+
+				if(const FVector VoxelLocation = FVector(VoxelCenter.X, VoxelCenter.Y, InterpHeight); LocalVoxelGrid.IsLocationInBounds(VoxelLocation))
+				{
+					InVoxelData.SetOccupancy(VoxelLocation, true);
+				} else
+				{
+					DrawDebugBox(World, VoxelCenter, VoxelBounds.GetExtent(), FColor::Red, false, 5.0f);
+				}
 			}
 		}
 	}

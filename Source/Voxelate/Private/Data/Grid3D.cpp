@@ -65,27 +65,7 @@ void FGrid3D::Init(const FVector& InVoxelSize, const FBox& InBounds)
 	checkf(InBounds.IsValid, TEXT("Bounds are invalid"));
 	
 	VoxelSize = InVoxelSize;
-	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	// FVector BoundsMin = InBounds.Min;
-	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
-	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
-	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
-	//
-	// FVector BoundsMax = InBounds.Max;
-	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
-	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
-	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
-	//
-	// Bounds = FBox(BoundsMin, BoundsMax);
-
 	Bounds = CalculateGridBounds(InVoxelSize, InBounds);
-	
-	// Calculate the number of voxels in each dimension
-	// VoxelCount = FIntVector(
-	// 	FMath::CeilToInt(Bounds.GetSize().X / VoxelSize.X),
-	// 	FMath::CeilToInt(Bounds.GetSize().Y / VoxelSize.Y),
-	// 	FMath::CeilToInt(Bounds.GetSize().Z / VoxelSize.Z));
-
 	VoxelCount = CalculateGridCount(InVoxelSize, Bounds.GetSize());
 }
 
@@ -206,7 +186,20 @@ bool FGrid3D::DoesOverlap(const FGrid3D& InVoxelGrid) const
  */
 bool FGrid3D::DoesOverlap(const FBox& InBounds) const
 {
-	return Bounds.Overlap(InBounds).GetVolume() > 0.0;
+	// TODO: Use SAT to check if the bounds overlap
+
+	return GetBoundsOverlap(Bounds, InBounds).GetVolume() > 0.0;
+	// return Bounds.Overlap(InBounds).GetVolume() > 0.0;
+}
+
+FBox FGrid3D::GetBoundsOverlap(const FGrid3D& InVoxelGrid) const
+{
+	return GetBoundsOverlap(Bounds, InVoxelGrid.Bounds);
+}
+
+FBox FGrid3D::GetBoundsOverlap(const FBox& InBounds) const
+{
+	return GetBoundsOverlap(Bounds, InBounds);
 }
 
 /**
@@ -368,7 +361,7 @@ FBox FGrid3D::GetVoxelBounds(const FVector& InLocation) const
  */
 TArray<int32> FGrid3D::GetVoxelIndicesFromBounds(const FBox& InBounds) const
 {
-	// TODO: check and clamp bounds
+	// TODO: check and clamp bounds - Fix issues with overlapping bounds
 
 	const FBox& ClampedBounds = Bounds.Overlap(InBounds);
 
@@ -427,29 +420,11 @@ TArray<int32> FGrid3D::GetVoxelIndicesFromBounds(const FBox& InBounds) const
  */
 TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) const
 {
-	// TODO: check and clamp bounds
-	
-	// Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
-	// FVector BoundsMin = InBounds.Min;
-	// BoundsMin.X = FMath::FloorToFloat(BoundsMin.X / VoxelSize.X) * VoxelSize.X;
-	// BoundsMin.Y = FMath::FloorToFloat(BoundsMin.Y / VoxelSize.Y) * VoxelSize.Y;
-	// BoundsMin.Z = FMath::FloorToFloat(BoundsMin.Z / VoxelSize.Z) * VoxelSize.Z;
-	//
-	// FVector BoundsMax = InBounds.Max;
-	// BoundsMax.X = FMath::CeilToFloat(BoundsMax.X / VoxelSize.X) * VoxelSize.X;
-	// BoundsMax.Y = FMath::CeilToFloat(BoundsMax.Y / VoxelSize.Y) * VoxelSize.Y;
-	// BoundsMax.Z = FMath::CeilToFloat(BoundsMax.Z / VoxelSize.Z) * VoxelSize.Z;
-	//
-	// const FVector BoundsSize = BoundsMax - BoundsMin;
-
-	const FBox& GridBounds = CalculateGridBounds(VoxelSize, InBounds);
+	// Clamp bounds to the grid bounds
+	const FBox Overlap = GetBoundsOverlap(Bounds, InBounds);
+	// Get grid information based on the overlap
+	const FBox& GridBounds = CalculateGridBounds(VoxelSize, Overlap);
 	const FIntVector Count = CalculateGridCount(VoxelSize, GridBounds.GetSize());
-
-	
-	// const int32 NumVoxelsX = FMath::CeilToInt(BoundsSize.X / VoxelSize.X);
-	// const int32 NumVoxelsY = FMath::CeilToInt(BoundsSize.Y / VoxelSize.Y);
-	// const int32 NumVoxelsZ = FMath::CeilToInt(BoundsSize.Z / VoxelSize.Z);
-	// const int32 NumVoxels = NumVoxelsX * NumVoxelsY * NumVoxelsZ;
 	
 	TArray<FIntVector> Result;
 	Result.Reserve(Count.X * Count.Y * Count.Z);
@@ -478,38 +453,11 @@ TArray<FIntVector> FGrid3D::GetVoxelCoordinatesFromBounds(const FBox& InBounds) 
  */
 FGrid3D FGrid3D::GetSubGrid(const FBox& InBounds) const
 {
-	// TODO: Fix situation where bounds are larger than grid bounds
+    // Round bounds up to the nearest voxel size inclusive (so anything partial gets included)
+	const FBox Overlap = GetBoundsOverlap(Bounds, InBounds);
 
-	const FVector Min = Bounds.Min;
-	const FVector Max = Bounds.Max;
-	
-	const FVector InMin = InBounds.Min;
-	const FVector InMax = InBounds.Max;
-
-	const double MinX = FMath::Max(Min.X, InMin.X);
-	const double MinY = FMath::Max(Min.Y, InMin.Y);
-	const double MinZ = FMath::Max(Min.Z, InMin.Z);
-
-	const double MaxX = FMath::Min(Max.X, InMax.X);
-	const double MaxY = FMath::Min(Max.Y, InMax.Y);
-	const double MaxZ = FMath::Min(Max.Z, InMax.Z);
-
-	const FVector NewMin = FVector(MinX, MinY, MinZ);
-	const FVector NewMax = FVector(MaxX, MaxY, MaxZ);
-
-	const FBox Overlap = FBox(NewMin, NewMax);
-	
-	// const FBox& Overlap = Bounds.Overlap(InBounds);
-	// const FVector Min = Overlap.Min;
-	// const FVector Max = Overlap.Max;
-	// const double VolumeA = (Max.X - Min.X);
-	// const double VolumeB = (Max.Y - Min.Y);
-	// const double VolumeC = (Max.Z - Min.Z);
-	// const double FinalVolume = VolumeA * VolumeB * VolumeC;
-	// const double Volume = Overlap.GetVolume();
 	// Make sure that the bounds intersect or are completely inside the grid bounds
 	checkf(Overlap.GetVolume() > 0, TEXT("Bounds must overlap or be inside the grid bounds"));
-	// checkf(Bounds.Intersect(InBounds) || Bounds.IsInsideOrOn(InBounds), TEXT("Bounds must overlap or be inside the grid bounds"));
 
 	return FGrid3D(*this, Overlap);
 }
@@ -568,6 +516,41 @@ FIntVector FGrid3D::CalculateGridCount(const FVector& InVoxelSize, const FVector
 	const int32 NumVoxelsZ = FMath::CeilToInt(InBoundsSize.Z / InVoxelSize.Z);
 
 	return FIntVector(NumVoxelsX, NumVoxelsY, NumVoxelsZ);
+}
+
+/**
+ * Gets the overlap of two bounds using SAT
+ * @param InA The first bounds
+ * @param InB The second bounds
+ * @return Box representing the overlap of the two bounds if any
+ */
+FBox FGrid3D::GetBoundsOverlap(const FBox& InA, const FBox& InB)
+{
+	const FVector MinA = InA.Min;
+	const FVector MaxA = InA.Max;
+	
+	const FVector MinB = InB.Min;
+	const FVector MaxB = InB.Max;
+	
+	if ((MinA.X > MaxB.X) || (MinB.X > MaxA.X))
+	{
+		return FBox();
+	}
+
+	if ((MinA.Y > MaxB.Y) || (MinB.Y > MaxA.Y))
+	{
+		return FBox();
+	}
+
+	if ((MinA.Z > MaxB.Z) || (MinB.Z > MaxA.Z))
+	{
+		return FBox();
+	}
+
+	const FVector MinVector = FVector(FMath::Max(MinA.X, MinB.X), FMath::Max(MinA.Y, MinB.Y), FMath::Max(MinA.Z, MinB.Z));
+	const FVector MaxVector = FVector(FMath::Min(MaxA.X, MaxB.X), FMath::Min(MaxA.Y, MaxB.Y), FMath::Min(MaxA.Z, MaxB.Z));
+
+	return FBox(MinVector, MaxVector);
 }
 
 /**

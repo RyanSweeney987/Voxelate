@@ -30,9 +30,11 @@
 #include "LandscapeHeightProxy.generated.h"
 
 typedef TStaticArray<double, 4> FHeightQuadrantArray;
+typedef TStaticArray<int32, 4> FHeightIndexQuadrantArray;
 
 /**
  * Proxy to make easier to get landscape heights
+ * Height data is stored scaled but not translated
  */
 USTRUCT()
 struct VOXELATE_API FLandscapeHeightProxy
@@ -49,20 +51,33 @@ protected:
 	// Each cell center is in the center of 4 height values
 	UPROPERTY()
 	FGrid2D LandscapeHeightGrid;
-	
+
+	UPROPERTY()
+	int32 ComponentSize = 0;
+
+	UPROPERTY()
+	FBox LandscapeComponentBounds;
 public:
 	FLandscapeHeightProxy() = default;
 	FLandscapeHeightProxy(const ULandscapeHeightfieldCollisionComponent* InLandscapeComponent);
 
 	void Init(const ULandscapeHeightfieldCollisionComponent* InLandscapeComponent);
 
+	int32 GetComponentSize() const;
+
+	TArray<double> GetCollisionHeights();
+	const TArray<double>& GetCollisionHeightsConst() const;
+	
 	FGrid2D GetGrid() const;
 	FGrid2D& GetGrid();
 	const FGrid2D& GetGridConst() const;
+
+	int32 GetHeightIndex(const FVector& InLocation) const;
 	
-	double GetHeight(const int32 Index) const;
-	// double GetHeight(const FIntPoint& Coordinate) const;
-	// double GetHeight(const FVector& InLocation) const;
+	double GetHeight(const int32 HeightIndex) const;
+	double GetHeightTranslated(const int32 HeightIndex) const;
+
+	double GetHeightTranslation() const;
 
 	double GetMaxHeight(const FVector& InLocation) const;
 	double GetMinHeight(const FVector& InLocation) const;
@@ -72,16 +87,8 @@ public:
 	FHeightQuadrantArray GetHeights(const FVector& InLocation) const;
 	TArray<double> GetHeights(const FBox& InBounds, FGrid2D& OutLocalGrid) const;
 
-	FBox GetBounds() const;
-	// double GetExactHeight(const int32 InIndex) const;
-	// double GetExactHeight(const FIntPoint& InCoordinate) const;
-	// double GetExactHeight(const FVector2d& InLocation) const;
+	FHeightQuadrantArray GetHeightIndices(const FVector& InLocation) const;
 
-	// double GetInterpolatedHeight(const int32 InIndex) const;
-	// double GetInterpolatedHeight(const FIntPoint& InCoordinate) const;
-	// double GetInterpolatedHeight(const FVector2d& InLocation) const;
-	
-	// FBox GetBounds() const;
+	FBox GetLandscapeComponentBounds() const;
+	FBox GetGridBounds() const;
 };
-
-

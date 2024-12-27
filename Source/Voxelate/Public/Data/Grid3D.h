@@ -75,6 +75,9 @@ public:
 	bool DoesOverlap(const FGrid3D& InVoxelGrid) const;
 	bool DoesOverlap(const FBox& InBounds) const;
 	
+	FBox GetBoundsOverlap(const FGrid3D& InVoxelGrid) const;
+	FBox GetBoundsOverlap(const FBox& InBounds) const;
+	
 	bool IsInsideOrOn(const FGrid3D& InVoxelGrid) const;
 	bool IsInsideOrOn(const FBox& InBounds) const;
 	
@@ -99,6 +102,8 @@ public:
 private:
 	FBox CalculateGridBounds(const FVector& InVoxelSize, const FBox& InBounds) const;
 	FIntVector CalculateGridCount(const FVector& InVoxelSize, const FVector& InBoundsSize) const;
+
+	static FBox GetBoundsOverlap(const FBox& InA, const FBox& InB);
 };
 
 // TODO: Get voxel clamped bounds

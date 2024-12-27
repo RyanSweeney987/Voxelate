@@ -121,8 +121,8 @@ int32 FGrid2D::GetCellIndex(const FVector& InLocation) const
 
 	const FVector LocalLocation = InLocation + (Bounds.Min * -1);
 	
-	const int32 X = FMath::FloorToInt(LocalLocation.X / CellCount.X);
-	const int32 Y = FMath::FloorToInt(LocalLocation.Y / CellCount.Y);
+	const int32 X = FMath::FloorToInt(LocalLocation.X / CellSize.X);
+	const int32 Y = FMath::FloorToInt(LocalLocation.Y / CellSize.Y);
 
 	return X + Y * CellCount.X;
 }
@@ -140,8 +140,8 @@ FIntPoint FGrid2D::GetCellCoordinate(const FVector& InLocation) const
 
 	const FVector LocalLocation = InLocation + (Bounds.Min * -1);
 	
-	const int32 X = FMath::FloorToInt(LocalLocation.X / CellCount.X);
-	const int32 Y = FMath::FloorToInt(LocalLocation.Y / CellCount.Y);
+	const int32 X = FMath::FloorToInt(LocalLocation.X / CellSize.X);
+	const int32 Y = FMath::FloorToInt(LocalLocation.Y / CellSize.Y);
 	
 	return FIntPoint(X, Y);
 }
